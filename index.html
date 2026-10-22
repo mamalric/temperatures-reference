@@ -4,202 +4,434 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Températures de référence</title>
+<meta name="description" content="Température extérieure de base hiver (NF P52-612/CN) et été d'un site en France, depuis son adresse, sa commune ou son département.">
+
+<!-- Aperçu du lien (Teams, Outlook, WhatsApp, LinkedIn...) : image matricielle en adresse absolue,
+     1200 x 630, le motif principal au centre pour survivre au recadrage carré des vignettes. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Outils B27">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:title" content="Températures de référence">
+<meta property="og:description" content="Température extérieure de base hiver (NF P52-612/CN) et été d'un site en France, depuis son adresse, sa commune ou son département.">
+<meta property="og:url" content="https://mamalric.github.io/temperatures-reference/">
+<meta property="og:image" content="https://mamalric.github.io/temperatures-reference/apercu.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Températures de référence, un outil B27 : température de base hiver et été d'un site">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Favicon : SVG pour les navigateurs récents, PNG et ICO pour les autres et pour les messageries -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" href="favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#7da32f">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
-  :root {
-    --bg: #f4f5f7; --card: #ffffff; --ink: #1b2330; --muted: #5d6878; --line: #dfe3e9; --field: #ffffff;
-    --accent: #1d5fa7; --cold: #1d5fa7; --cold-bg: #eaf1fb; --hot: #b9440f; --hot-bg: #fcefe7;
-    --warn: #6e4a00; --warn-bg: #fff4d1; --err: #a3231b; --err-bg: #fdeceb;
+/* Charte des outils B27, reprise de la Calculette ECS et du Sélectionneur de radiateurs :
+   palette papier/encre, primaire olive #7da32f, clair par défaut et sombre via
+   [data-theme="dark"] ou le réglage système. Police : pile Inter sans lien Google Fonts. */
+:root{
+  color-scheme: light;
+  --fond:#eef0ed;
+  --papier:#ffffff;
+  --papier-2:#f4f6f3;
+  --papier-3:#e8ebe6;
+  --champ:#ffffff;
+  --champ-actif:#ffffff;
+  --encre:#1e2220;
+  --encre-2:#525754;
+  --discret:#676e69;
+  --ligne:#dde0dc;
+  --ligne-2:#ebeee9;
+  --primaire:#7da32f;
+  --primaire-fond:#eaf3d8;
+  --primaire-bord:#c3daa0;
+  --primaire-encre:#4c6a19;
+  --lien:#4c6a19;
+  --haute:#bc3f38;
+  --haute-fond:#fbeae8;
+  --froid:#20718f;
+  --froid-fond:#e3f0f5;
+  --moyenne:#b87a15;
+  --moyenne-fond:#fdf3e2;
+  --note-fond:#fdf6e6;
+  --note-bord:#e2b45f;
+  --sur-primaire:#ffffff;
+  --anneau:rgba(125,163,47,.20);
+  --rayon:10px;
+  --rayon-s:7px;
+  --ombre:0 1px 2px rgba(30,34,32,.05), 0 6px 20px rgba(30,34,32,.06);
+  --vitesse:.12s;
+}
+[data-theme="dark"]{
+  color-scheme: dark;
+  --fond:#101211;
+  --papier:#1a1d1b;
+  --papier-2:#232725;
+  --papier-3:#2c312e;
+  --champ:#242926;
+  --champ-actif:#2a2f2c;
+  --encre:#e9ebe8;
+  --encre-2:#b2b7b3;
+  --discret:#929991;
+  --ligne:#343a36;
+  --ligne-2:#272c29;
+  --primaire:#a5cc52;
+  --primaire-fond:#2b3a17;
+  --primaire-bord:#4a6626;
+  --primaire-encre:#c9e58f;
+  --lien:#b8d67c;
+  --haute:#e5837c;
+  --haute-fond:#3b2321;
+  --froid:#6dbcd8;
+  --froid-fond:#17303a;
+  --moyenne:#e3ad63;
+  --moyenne-fond:#382c15;
+  --note-fond:#332a14;
+  --note-bord:#8a6520;
+  --sur-primaire:#12180a;
+  --anneau:rgba(165,204,82,.22);
+  --ombre:0 1px 2px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.30);
+}
+@media (prefers-reduced-motion: reduce){ :root{ --vitesse:0s } *{ animation:none !important; transition:none !important } }
+
+*{box-sizing:border-box}
+body{
+  font-family:Inter,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  margin:0;color:var(--encre);background:var(--fond);font-size:14px;line-height:1.5;
+  transition:background-color var(--vitesse),color var(--vitesse);
+}
+a{color:var(--lien);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--primaire);outline-offset:2px;border-radius:4px}
+[hidden]{display:none !important}
+.ico{vertical-align:-3px;flex:none}
+
+/* ---- en-tête */
+header{
+  display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;
+  padding:12px 22px;background:var(--papier);border-bottom:1px solid var(--ligne);
+  position:sticky;top:0;z-index:1100;box-shadow:0 1px 3px rgba(0,0,0,.05);
+}
+header .logo{
+  width:30px;height:30px;border-radius:var(--rayon-s);background:var(--primaire);color:var(--sur-primaire);
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+}
+header .titre{display:flex;flex-direction:column;gap:1px;min-width:0}
+header h1{margin:0;font-size:18px;font-weight:800;letter-spacing:-.3px;color:var(--encre);line-height:1.2}
+header .sub{font-size:12.5px;color:var(--discret);font-weight:400}
+header .espace{flex:1}
+header .actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.bouton-icone{
+  background:transparent;border:1px solid var(--ligne);color:var(--encre-2);border-radius:var(--rayon-s);
+  width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:background-color var(--vitesse),transform var(--vitesse);flex:none;
+}
+.bouton-icone:hover{background:var(--papier-3);transform:rotate(15deg)}
+
+/* ---- boutons */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;background:var(--primaire);color:var(--sur-primaire);border:1px solid var(--primaire);
+  border-radius:var(--rayon-s);padding:8px 14px;font:inherit;font-size:13px;cursor:pointer;font-weight:600;
+  transition:filter var(--vitesse),background-color var(--vitesse),transform var(--vitesse);
+}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:scale(.97)}
+.btn.sec{background:var(--papier);color:var(--primaire-encre);border-color:var(--ligne)}
+.btn.sec:hover{background:var(--primaire-fond);filter:none}
+
+.wrap{padding:18px 22px 40px;max-width:1360px;margin:0 auto}
+
+/* ---- disposition deux colonnes */
+main.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width: 980px){ main.cols{grid-template-columns:1fr} }
+@media (max-width: 600px){ .wrap{padding:14px 12px 30px} header{padding:10px 12px} }
+
+/* ---- panneaux */
+.panel{background:var(--papier);border-radius:var(--rayon);box-shadow:var(--ombre);margin-bottom:18px;overflow:hidden}
+[data-theme="dark"] .panel{border:1px solid var(--ligne)}
+.panel h2{
+  margin:0;padding:12px 16px;font-size:15px;font-weight:700;color:var(--encre);
+  background:var(--papier-2);border-bottom:1px solid var(--ligne);
+  display:flex;align-items:center;gap:9px;
+}
+.panel h2 .badge{margin-left:auto}
+.panel .body{padding:16px}
+.badge{
+  display:inline-block;padding:1px 9px;border-radius:11px;
+  font-size:11.5px;font-weight:700;letter-spacing:.3px;white-space:nowrap;
+}
+.badge.ok{background:var(--primaire-fond);color:var(--primaire-encre);border:1px solid var(--primaire-bord)}
+
+/* ---- onglets de saisie */
+.tabs{display:flex;gap:4px;margin:0 0 14px;flex-wrap:wrap}
+.tabs button{
+  display:inline-flex;align-items:center;gap:7px;background:transparent;border:1px solid transparent;
+  padding:8px 14px;font:inherit;font-size:13.5px;font-weight:600;color:var(--encre-2);
+  cursor:pointer;border-radius:var(--rayon);transition:background-color var(--vitesse),color var(--vitesse);
+}
+.tabs button:hover{background:var(--papier-3);color:var(--encre)}
+.tabs button[aria-selected="true"]{background:var(--primaire-fond);color:var(--primaire-encre)}
+
+/* ---- champs */
+.fld{display:flex;flex-direction:column;gap:5px;min-width:0}
+.fld > label,.fld > .intitule{font-size:12px;font-weight:600;color:var(--encre-2);line-height:1.35}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width: 480px){ .grid2{grid-template-columns:1fr} }
+.hint{font-size:11.5px;color:var(--discret);font-weight:400;line-height:1.45;margin:6px 0 0;min-height:1.2em}
+.ligne{display:flex;align-items:center;gap:6px}
+.unite{color:var(--discret);font-size:12px}
+input[type=number],input[type=text],select{
+  font:inherit;padding:7px 10px;border:1px solid var(--ligne);border-radius:var(--rayon-s);
+  background-color:var(--champ);color:var(--encre);width:100%;
+  transition:border-color var(--vitesse),background-color var(--vitesse),box-shadow var(--vitesse);
+}
+input[type=number]{width:120px}
+input:hover,select:hover{border-color:var(--discret)}
+input:focus,select:focus{outline:none;border-color:var(--primaire);background-color:var(--champ-actif);box-shadow:0 0 0 3px var(--anneau)}
+.readout{padding:7px 10px;border:1px solid var(--ligne-2);border-radius:var(--rayon-s);background:var(--papier-2);min-height:37px;font-weight:600}
+.site{margin-top:16px;padding-top:16px;border-top:1px solid var(--ligne-2);display:grid;gap:12px}
+
+/* Case à cocher redessinée, comme sur les autres outils B27 */
+.chkligne{display:flex;align-items:flex-start;gap:8px;font-size:13px;font-weight:600;color:var(--encre-2);cursor:pointer}
+.chkligne.off{color:var(--discret);cursor:default}
+.chkligne input[type=checkbox]{
+  appearance:none;-webkit-appearance:none;margin:2px 0 0;flex:none;
+  width:16px;height:16px;border:1.5px solid var(--ligne);border-radius:5px;
+  background-color:var(--champ);background-repeat:no-repeat;background-position:center;
+  background-size:11px 11px;cursor:pointer;
+  transition:background-color var(--vitesse),border-color var(--vitesse),box-shadow var(--vitesse);
+}
+.chkligne input[type=checkbox]:hover{border-color:var(--primaire)}
+.chkligne input[type=checkbox]:disabled{opacity:.5;cursor:default}
+.chkligne input[type=checkbox]:focus-visible{outline:none;border-color:var(--primaire);box-shadow:0 0 0 3px var(--anneau)}
+.chkligne input[type=checkbox]:checked{
+  background-color:var(--primaire);border-color:var(--primaire);
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+[data-theme="dark"] .chkligne input[type=checkbox]:checked{
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2312180a' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+/* ---- autocomplétion */
+.ac{position:relative}
+.suggest{position:absolute;z-index:1000;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;
+  background:var(--papier);border:1px solid var(--ligne);border-radius:var(--rayon);
+  box-shadow:0 2px 6px rgba(0,0,0,.10),0 12px 32px rgba(0,0,0,.16);max-height:300px;overflow:auto}
+.suggest li{padding:7px 10px;border-radius:var(--rayon-s);cursor:pointer;font-weight:600;color:var(--encre)}
+.suggest li small{display:block;color:var(--discret);font-weight:400}
+.suggest li[aria-selected="true"],.suggest li:hover{background:var(--primaire-fond)}
+.suggest li.msg{cursor:default;color:var(--discret);font-weight:400}
+.suggest li.msg:hover{background:none}
+
+/* ---- carte */
+#map{height:280px;margin-top:14px;border-radius:var(--rayon-s);border:1px solid var(--ligne);position:relative;z-index:0}
+.leaflet-container{font:inherit;font-size:11px}
+
+/* ---- résultats */
+.res .grand{font-size:44px;font-weight:800;line-height:1.1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.res.hiver .grand{color:var(--froid)}
+.res.ete .grand{color:var(--haute)}
+.res .sous{margin:4px 0 0;color:var(--encre-2);min-height:1.4em}
+dl.det{display:grid;grid-template-columns:auto 1fr;margin:14px 0 0;font-size:13px}
+dl.det dt,dl.det dd{padding:6px 0;border-top:1px solid var(--ligne-2)}
+dl.det dt{color:var(--encre-2);padding-right:14px}
+dl.det dd{margin:0;text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+dl.det dd small{font-weight:400;color:var(--discret)}
+.note{font-size:12.5px;line-height:1.5;padding:9px 12px;border-radius:var(--rayon-s);margin:10px 0 0;border:1px solid;display:flex;gap:8px;align-items:flex-start}
+.note .ico{margin-top:2px}
+.note.warn{background:var(--note-fond);border-color:var(--note-bord);color:var(--encre-2)}
+.note.warn .ico{color:var(--moyenne)}
+.note.info{background:var(--papier-2);border-color:var(--ligne-2);color:var(--encre-2)}
+.note.info .ico{color:var(--discret)}
+.note.err{background:var(--haute-fond);border-color:var(--haute);color:var(--haute)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+@media (max-width: 480px){ .controls{grid-template-columns:1fr} }
+table{border-collapse:collapse;width:100%;margin-top:14px;font-size:13px}
+th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--ligne-2);font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{background:var(--papier-2);color:var(--discret);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--ligne)}
+tr.reco td{background:var(--primaire-fond);font-weight:700;color:var(--primaire-encre)}
+tr.reco td:first-child{box-shadow:inset 3px 0 0 var(--primaire)}
+.status{display:flex;align-items:center;gap:8px;color:var(--discret);font-size:12.5px;margin-top:8px;min-height:1.4em}
+.spin{width:14px;height:14px;border:2px solid var(--ligne);border-top-color:var(--primaire);border-radius:50%;animation:tourne .8s linear infinite}
+@keyframes tourne{to{transform:rotate(360deg)}}
+
+/* ---- panneau "À propos" (rouage), comme sur les autres outils B27 */
+.modale{
+  border:none;padding:0;border-radius:var(--rayon);background:var(--papier);color:var(--encre);
+  box-shadow:0 8px 32px rgba(35,31,32,.22);width:min(760px,94vw);max-height:88vh;overflow:hidden;
+}
+[data-theme="dark"] .modale{box-shadow:0 8px 32px rgba(0,0,0,.6);border:1px solid var(--ligne)}
+.modale::backdrop{background:rgba(0,0,0,.45)}
+.modale-tete{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--ligne);background:var(--papier-2)}
+.modale-tete h2{margin:0;font-size:15px;font-weight:700;color:var(--encre);display:flex;align-items:center;gap:9px}
+.modale-tete .espace{flex:1}
+.modale-corps{padding:16px 18px;overflow:auto;max-height:calc(88vh - 56px);font-size:13px}
+.stats-groupe{margin:0 0 18px}
+.stats-groupe:last-child{margin-bottom:0}
+.stats-groupe h3{margin:0 0 8px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--discret);display:flex;align-items:center;gap:6px}
+.stats-liste{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 16px;margin:0}
+.stats-liste dt{color:var(--encre-2)}
+.stats-liste dd{margin:0;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.stats-liste.gauche dd{text-align:left;font-weight:400}
+.methodo{font-size:12.5px;color:var(--encre-2);line-height:1.6}
+.methodo p{margin:0 0 8px}
+.changelog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.changelog li{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;align-items:baseline}
+.changelog .cl-ver{grid-row:1 / span 2;align-self:start;display:inline-block;min-width:34px;text-align:center;padding:2px 8px;border-radius:11px;font-size:11.5px;font-weight:700;background:var(--primaire-fond);color:var(--primaire-encre);border:1px solid var(--primaire-bord)}
+.changelog li.actuelle .cl-ver{background:var(--primaire);color:var(--sur-primaire);border-color:var(--primaire)}
+.changelog .cl-titre{font-weight:600;color:var(--encre)}
+.changelog .cl-date{font-weight:400;color:var(--discret);font-size:11.5px}
+.changelog .cl-txt{color:var(--encre-2);line-height:1.5}
+
+footer.pied{padding:0 22px 26px;max-width:1360px;margin:0 auto;font-size:12px;color:var(--discret);line-height:1.6}
+footer.pied div + div{margin-top:4px}
+
+/* ---- impression : les résultats seuls, toujours sur fond clair */
+@media print{
+  :root,[data-theme="dark"]{
+    color-scheme:light;--fond:#fff;--papier:#fff;--papier-2:#f4f6f3;--ligne:#c7cbc6;--ligne-2:#dcdfda;
+    --encre:#1e2220;--encre-2:#4a4f4c;--discret:#636965;--primaire:#7da32f;--primaire-fond:#eaf3d8;--primaire-encre:#3f5a12;
+    --froid:#1a5f79;--haute:#a8332c;--note-fond:#fdf6e6;--note-bord:#c39434;--ombre:none;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #12161c; --card: #1b2028; --ink: #e5e9ef; --muted: #9aa4b2; --line: #2d3540; --field: #141920;
-      --accent: #74a9ea; --cold: #8bbcf2; --cold-bg: #182638; --hot: #f39a66; --hot-bg: #352217;
-      --warn: #f1c96d; --warn-bg: #352c16; --err: #f39b93; --err-bg: #3a1c1a;
-    }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  header, main, footer { max-width: 1180px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
-  header { padding-top: 28px; }
-  h1 { font-size: 1.55rem; margin: 0 0 4px; letter-spacing: -0.01em; }
-  header p { margin: 0; color: var(--muted); max-width: 75ch; }
-  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding-top: 18px; padding-bottom: 16px; align-items: start; }
-  @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
-  .stack { display: grid; gap: 16px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
-  h2 { font-size: 1rem; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-
-  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; margin-bottom: 14px; }
-  .tabs button { flex: 1; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
-  .tabs button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
-
-  label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); }
-  input[type=text], input[type=number], select {
-    display: block; width: 100%; margin-top: 4px; padding: 9px 11px; font: inherit; font-weight: 400; color: var(--ink);
-    background: var(--field); border: 1px solid var(--line); border-radius: 8px;
-  }
-  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  @media (max-width: 480px) { .row2 { grid-template-columns: 1fr; } }
-  .ac { position: relative; }
-  .suggest { position: absolute; z-index: 1000; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 4px; list-style: none;
-    background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: 300px; overflow: auto; }
-  .suggest li { padding: 7px 9px; border-radius: 6px; cursor: pointer; }
-  .suggest li small { display: block; color: var(--muted); }
-  .suggest li[aria-selected="true"], .suggest li:hover { background: var(--cold-bg); }
-  .suggest li.msg { cursor: default; color: var(--muted); }
-  .suggest li.msg:hover { background: none; }
-
-  #map { height: 270px; margin-top: 14px; border-radius: 8px; border: 1px solid var(--line); position: relative; z-index: 0; }
-  .hint { font-size: .82rem; color: var(--muted); margin: 6px 0 0; min-height: 1.2em; }
-  .site { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
-  .readout { margin-top: 4px; padding: 9px 11px; border-radius: 8px; background: var(--bg); color: var(--ink); font-weight: 400; min-height: 40px; }
-  .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; color: var(--ink); font-size: .88rem; }
-  .check input { margin-top: 3px; }
-  .check.off { color: var(--muted); }
-
-  .res .big { font-size: 3rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-  .res .sub { margin: 4px 0 0; color: var(--muted); min-height: 1.4em; }
-  .winter .big { color: var(--cold); }
-  .summer .big { color: var(--hot); }
-  .tag { font-size: .75rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
-  .winter .tag { background: var(--cold-bg); color: var(--cold); }
-  .summer .tag { background: var(--hot-bg); color: var(--hot); }
-  dl { display: grid; grid-template-columns: auto 1fr; margin: 14px 0 0; font-size: .9rem; }
-  dt, dd { padding: 6px 0; border-top: 1px solid var(--line); }
-  dt { color: var(--muted); padding-right: 12px; }
-  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-  .note { font-size: .85rem; padding: 8px 11px; border-radius: 8px; margin: 10px 0 0; }
-  .note.warn { background: var(--warn-bg); color: var(--warn); }
-  .note.err { background: var(--err-bg); color: var(--err); }
-  .note.info { background: var(--bg); color: var(--muted); }
-  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: .9rem; font-variant-numeric: tabular-nums; }
-  th, td { padding: 6px 8px; text-align: right; border-top: 1px solid var(--line); }
-  th:first-child, td:first-child { text-align: left; }
-  th { color: var(--muted); font-weight: 600; font-size: .8rem; }
-  tr.sel td { background: var(--hot-bg); font-weight: 600; }
-  .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .88rem; margin-top: 8px; min-height: 1.4em; }
-  .spin { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--hot); border-radius: 50%; animation: r 0.8s linear infinite; }
-  @keyframes r { to { transform: rotate(360deg); } }
-  .btn { font: inherit; font-size: .85rem; font-weight: 600; color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  .btn:hover { background: var(--bg); }
-  footer { padding-bottom: 32px; color: var(--muted); font-size: .86rem; }
-  footer details { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px; }
-  footer summary { cursor: pointer; font-weight: 600; color: var(--ink); }
-  footer li { margin: 6px 0; }
-  [hidden] { display: none !important; }
+  header{position:static}
+  .noprint,#map,.tabs,[data-pane],.hint,.controls,.status{display:none !important}
+  main.cols{display:block}
+  .panel{break-inside:avoid;box-shadow:none;border:1px solid var(--ligne)}
+}
 </style>
+<script>try{var t=localStorage.getItem('temperatures_reference_theme');document.documentElement.dataset.theme=t||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');}catch(e){}</script>
 </head>
 <body>
 
 <header>
-  <h1>Températures de référence</h1>
-  <p>Température extérieure de base hiver selon NF EN 12831 et son complément national NF P52-612/CN, et température de base été calculée sur le climat local du site.</p>
+  <span class="logo" data-ico="thermometre" data-ico-taille="18"></span>
+  <div class="titre">
+    <h1>Températures de référence</h1>
+    <span class="sub">Température extérieure de base hiver (NF EN 12831, NF P52-612/CN) et été (climat local du site)</span>
+  </div>
+  <span class="espace"></span>
+  <div class="actions noprint">
+    <button type="button" class="btn sec" id="copy" data-ico="presse_papier" title="Copier le résultat au format texte">Copier le résultat</button>
+    <button type="button" class="bouton-icone" id="btnTheme" aria-label="Changer de thème"></button>
+    <button type="button" class="bouton-icone" id="btnApropos" data-ico="engrenage" aria-label="À propos et sources" title="À propos de l'outil"></button>
+  </div>
 </header>
 
-<main>
-  <section class="card">
-    <h2>Site</h2>
-    <div class="tabs" role="tablist">
-      <button role="tab" data-mode="adresse" aria-selected="true">Adresse</button>
-      <button role="tab" data-mode="commune" aria-selected="false">Commune</button>
-      <button role="tab" data-mode="departement" aria-selected="false">Région / département</button>
-    </div>
-
-    <div data-pane="adresse">
-      <label>Adresse du site
-        <div class="ac">
-          <input type="text" id="q-adresse" placeholder="ex. 12 rue de la République, Lyon" autocomplete="off">
-          <ul class="suggest" id="s-adresse" role="listbox" hidden></ul>
-        </div>
-      </label>
-    </div>
-    <div data-pane="commune" hidden>
-      <label>Commune ou code postal
-        <div class="ac">
-          <input type="text" id="q-commune" placeholder="ex. Briançon ou 05100" autocomplete="off">
-          <ul class="suggest" id="s-commune" role="listbox" hidden></ul>
-        </div>
-      </label>
-    </div>
-    <div data-pane="departement" hidden>
-      <div class="row2">
-        <label>Région<select id="sel-region"></select></label>
-        <label>Département<select id="sel-dep"></select></label>
-      </div>
-    </div>
-
-    <div id="map"></div>
-    <p class="hint" id="map-hint">Un clic sur la carte place ou déplace le site.</p>
-
-    <div class="site">
-      <div class="row2">
-        <label>Département retenu<div class="readout" id="out-dep">-</div></label>
-        <label>Altitude du site (m)<input type="number" id="alt" step="1" min="-10" max="4810" inputmode="numeric" placeholder="à saisir"></label>
-      </div>
-      <p class="hint" id="alt-hint"></p>
-      <label class="check" id="coast-wrap"><input type="checkbox" id="coast"> <span>Site à moins de 25 km de la mer (zones en pointillés de la carte de la norme)</span></label>
-    </div>
-  </section>
-
-  <div class="stack">
-    <section class="card res winter">
-      <h2>Hiver : température extérieure de base <span class="tag">NF P52-612/CN</span></h2>
-      <div class="big" id="w-val">-</div>
-      <p class="sub" id="w-sub">Choisir un site pour obtenir la valeur.</p>
-      <dl id="w-det"></dl>
-      <div id="w-notes"></div>
-    </section>
-
-    <section class="card res summer">
-      <h2>Été : température extérieure de base <span class="tag">Climat local</span></h2>
-      <div class="controls">
-        <label>Niveau de dépassement
-          <select id="pct">
-            <option value="0.4">0,4 % des heures (35 h/an)</option>
-            <option value="1">1 % des heures (88 h/an)</option>
-            <option value="2">2 % des heures (175 h/an)</option>
-          </select>
-        </label>
-        <label>Période analysée
-          <select id="period">
-            <option value="10">10 dernières années</option>
-            <option value="20">20 dernières années</option>
-            <option value="30">30 dernières années</option>
-          </select>
-        </label>
-      </div>
-      <div class="big" id="s-val">-</div>
-      <p class="sub" id="s-sub">Choisir un site pour lancer le calcul (connexion internet nécessaire).</p>
-      <div class="status" id="s-status"></div>
-      <div id="s-body" hidden>
-        <table>
-          <thead><tr><th>Dépassement</th><th>T sèche</th><th>T humide coïncidente</th><th>HR coïncidente</th></tr></thead>
-          <tbody id="s-tab"></tbody>
-        </table>
-        <dl id="s-det"></dl>
-        <p class="note info">Les réanalyses lissent un peu les pointes de température : en ville ou en fond de vallée, la valeur réelle peut être de 1 à 2 °C plus élevée.</p>
-      </div>
-    </section>
-
-    <div style="display:flex; justify-content:flex-end; gap:8px;">
-      <button class="btn" id="copy">Copier le résultat</button>
-    </div>
+<dialog id="dlgApropos" class="modale noprint" aria-labelledby="dlgAproposTitre">
+  <div class="modale-tete">
+    <h2 id="dlgAproposTitre" data-ico="engrenage" data-ico-taille="15">À propos de l'outil</h2>
+    <span class="espace"></span>
+    <button type="button" class="bouton-icone" id="btnAproposFermer" data-ico="fermer" aria-label="Fermer"></button>
   </div>
-</main>
+  <div class="modale-corps" id="aproposCorps"></div>
+</dialog>
 
-<footer>
-  <details>
-    <summary>Méthode et sources</summary>
-    <ul>
-      <li><b>Hiver.</b> Température extérieure de base θe,b de la NF EN 12831, complément national NF P52-612/CN : valeur départementale ramenée au niveau de la mer (tableau D.1a), puis valeur corrigée selon la tranche d'altitude du site (tableau D.1b). Une ligne particulière du tableau D.1b donne la valeur pour les sites à moins de 25 km de la côte. Pour un département à cheval sur deux zones, la carte de la norme fait foi. Sur un versant ensoleillé, on ne retient pas de valeur inférieure à -25 °C.</li>
-      <li><b>Été.</b> Il n'existe pas de table normative nationale. La valeur est calculée au point du site à partir des données horaires de réanalyse (ERA5 et ERA5-Land, servies par Open-Meteo et ramenées à l'altitude saisie) : température sèche dépassée 0,4 %, 1 % ou 2 % des heures de l'année (critères de l'ASHRAE Handbook Fundamentals), avec la température humide moyenne des heures où la température sèche est proche de cette valeur.</li>
-      <li><b>Services.</b> Géoplateforme IGN (géocodage BAN, altitude RGE ALTI, fond Plan IGN), geo.api.gouv.fr (communes), Open-Meteo (climat, licence CC BY 4.0, accès gratuit réservé à un usage non commercial). Données climatiques : Copernicus Climate Change Service.</li>
-    </ul>
-  </details>
+<div class="wrap">
+  <main class="cols">
+    <div>
+      <section class="panel">
+        <h2 data-ico="repere">Site</h2>
+        <div class="body">
+          <div class="tabs noprint" role="tablist">
+            <button type="button" role="tab" data-mode="adresse" data-ico="maison" aria-selected="true">Adresse</button>
+            <button type="button" role="tab" data-mode="commune" data-ico="immeuble" aria-selected="false">Commune</button>
+            <button type="button" role="tab" data-mode="departement" data-ico="carte" aria-selected="false">Région / département</button>
+          </div>
+
+          <div data-pane="adresse" class="fld">
+            <label for="q-adresse">Adresse du site</label>
+            <div class="ac">
+              <input type="text" id="q-adresse" placeholder="ex. 12 rue de la République, Lyon" autocomplete="off">
+              <ul class="suggest" id="s-adresse" role="listbox" hidden></ul>
+            </div>
+          </div>
+          <div data-pane="commune" class="fld" hidden>
+            <label for="q-commune">Commune ou code postal</label>
+            <div class="ac">
+              <input type="text" id="q-commune" placeholder="ex. Briançon ou 05100" autocomplete="off">
+              <ul class="suggest" id="s-commune" role="listbox" hidden></ul>
+            </div>
+          </div>
+          <div data-pane="departement" class="grid2" hidden>
+            <div class="fld"><label for="sel-region">Région</label><select id="sel-region"></select></div>
+            <div class="fld"><label for="sel-dep">Département</label><select id="sel-dep"></select></div>
+          </div>
+
+          <div id="map" class="noprint"></div>
+          <p class="hint noprint" id="map-hint">Un clic sur la carte place ou déplace le site.</p>
+
+          <div class="site">
+            <div class="grid2">
+              <div class="fld"><span class="intitule">Département retenu</span><div class="readout" id="out-dep">-</div></div>
+              <div class="fld">
+                <label for="alt">Altitude du site</label>
+                <div class="ligne"><input type="number" id="alt" step="1" min="-10" max="4810" inputmode="numeric" placeholder="à saisir"><span class="unite">m</span></div>
+              </div>
+            </div>
+            <p class="hint" id="alt-hint" style="margin-top:-6px"></p>
+            <label class="chkligne" id="coast-wrap"><input type="checkbox" id="coast"> <span>Site à moins de 25 km de la mer (zones en pointillés de la carte de la norme)</span></label>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div>
+      <section class="panel res hiver">
+        <h2 data-ico="flocon">Hiver : température extérieure de base <span class="badge ok">NF P52-612/CN</span></h2>
+        <div class="body">
+          <div class="grand" id="w-val">-</div>
+          <p class="sous" id="w-sub">Choisir un site pour obtenir la valeur.</p>
+          <dl class="det" id="w-det"></dl>
+          <div id="w-notes"></div>
+        </div>
+      </section>
+
+      <section class="panel res ete">
+        <h2 data-ico="soleil">Été : température extérieure de base <span class="badge ok">Climat local</span></h2>
+        <div class="body">
+          <div class="controls noprint">
+            <div class="fld">
+              <label for="pct">Niveau de dépassement</label>
+              <select id="pct">
+                <option value="0.4">0,4 % des heures (35 h/an)</option>
+                <option value="1">1 % des heures (88 h/an)</option>
+                <option value="2">2 % des heures (175 h/an)</option>
+              </select>
+            </div>
+            <div class="fld">
+              <label for="period">Période analysée</label>
+              <select id="period">
+                <option value="10">10 dernières années</option>
+                <option value="20">20 dernières années</option>
+                <option value="30">30 dernières années</option>
+              </select>
+            </div>
+          </div>
+          <div class="grand" id="s-val">-</div>
+          <p class="sous" id="s-sub">Choisir un site pour lancer le calcul (connexion internet nécessaire).</p>
+          <div class="status" id="s-status"></div>
+          <div id="s-body" hidden>
+            <table>
+              <thead><tr><th>Dépassement</th><th>T sèche</th><th>T humide coïncidente</th><th>HR coïncidente</th></tr></thead>
+              <tbody id="s-tab"></tbody>
+            </table>
+            <dl class="det" id="s-det"></dl>
+            <p class="note info" data-ico="info">Les réanalyses lissent un peu les pointes de température : en ville ou en fond de vallée, la valeur réelle peut être de 1 à 2 °C plus élevée.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<footer class="pied">
+  <div>Outil d'aide au dimensionnement à usage professionnel. La température de base hiver reprend la NF P52-612/CN : pour un département à cheval sur deux zones, la carte de la norme fait foi. La base été est une estimation statistique sur réanalyse climatique, sans valeur normative. Méthode et sources : rouage en haut à droite.</div>
+  <div class="noprint">L'adresse saisie part au géocodeur de l'IGN, la position aux services d'altitude et de climat ; l'outil ne conserve rien, hormis le choix du thème dans le navigateur.</div>
 </footer>
 
 <script>
@@ -384,50 +616,85 @@ function tHumide(t, hr) {
     + 0.00391838 * Math.pow(hr, 1.5) * Math.atan(0.023101 * hr) - 4.686035;
 }
 
+// Point de rosée et humidité relative (formule de Magnus)
+const MA = 17.62, MB = 243.12;
+const rosee = (t, hr) => { const g = Math.log(Math.max(hr, 1) / 100) + MA * t / (MB + t); return MB * g / (MA - g); };
+const hrDepuisRosee = (t, td) => Math.min(100, 100 * Math.exp(MA * td / (MB + td) - MA * t / (MB + t)));
+
+// Gradient vertical standard de l'atmosphère (K/m), pour ramener les données à l'altitude du site
+const GRADIENT = -0.0065;
+
+// L'accès gratuit d'Open-Meteo compte une requête par tranche de 14 jours de données, avec un
+// plafond de 600 par minute : dix années entières en coûtaient 260 et deux recherches de suite
+// suffisaient à le dépasser. Les heures qui comptent pour une base été tombent toutes entre
+// mai et septembre : on ne télécharge que cette fenêtre, une requête par été, et l'altitude se
+// corrige ensuite en local, sans requête.
+const ETE_DEBUT = "05-01", ETE_FIN = "09-30", JOURS_ETE = 153;
+const coutAnalyse = ans => Math.round(ans * JOURS_ETE / 14);
 const climCache = new Map();
 
-function climat(lat, lon, alt, ans) {
+function climat(lat, lon, ans) {
   const fin = new Date().getFullYear() - 1, debut = fin - ans + 1;
-  const key = [lat.toFixed(3), lon.toFixed(3), alt == null ? "dem" : Math.round(alt), ans].join("|");
+  const key = [lat.toFixed(3), lon.toFixed(3), ans].join("|");
   if (!climCache.has(key)) {
-    const p = new URLSearchParams({
-      latitude: lat.toFixed(4), longitude: lon.toFixed(4), start_date: `${debut}-01-01`, end_date: `${fin}-12-31`,
-      hourly: "temperature_2m,relative_humidity_2m", timeformat: "unixtime"
-    });
-    if (alt != null) p.set("elevation", Math.round(alt));
-    const pr = fetch(`https://archive-api.open-meteo.com/v1/archive?${p}`)
-      .then(async r => {
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || j.error) throw new Error(j.reason || `HTTP ${r.status}`);
-        return { ...analyse(j), debut, fin };
-      });
+    const pr = chargerEtes(lat, lon, debut, fin);
     pr.catch(() => climCache.delete(key));
     climCache.set(key, pr);
   }
   return climCache.get(key);
 }
 
-function analyse(j) {
-  const T = j.hourly.temperature_2m, H = j.hourly.relative_humidity_2m, time = j.hourly.time;
-  const vals = [], jours = new Map();
-  let iMax = -1, iMin = -1;
-  for (let i = 0; i < T.length; i++) {
-    const t = T[i];
-    if (t == null) continue;
-    vals.push(t);
+async function chargerEte(lat, lon, an) {
+  const p = new URLSearchParams({
+    latitude: lat.toFixed(4), longitude: lon.toFixed(4), start_date: `${an}-${ETE_DEBUT}`, end_date: `${an}-${ETE_FIN}`,
+    hourly: "temperature_2m,relative_humidity_2m", timeformat: "unixtime"
+  });
+  const r = await fetch(`https://archive-api.open-meteo.com/v1/archive?${p}`);
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 429 || /limit/i.test(j.reason || "")) throw Object.assign(new Error(j.reason || "limite atteinte"), { limite: true });
+  if (!r.ok || j.error) throw new Error(j.reason || `HTTP ${r.status}`);
+  return j;
+}
+
+async function chargerEtes(lat, lon, debut, fin) {
+  const annees = [];
+  for (let a = debut; a <= fin; a++) annees.push(a);
+  const res = new Array(annees.length);
+  let suivant = 0;
+  const ouvrier = async () => { while (suivant < annees.length) { const k = suivant++; res[k] = await chargerEte(lat, lon, annees[k]); } };
+  await Promise.all(Array.from({ length: Math.min(5, annees.length) }, ouvrier));
+  const T = [], H = [], time = [];
+  for (const j of res) { T.push(...j.hourly.temperature_2m); H.push(...j.hourly.relative_humidity_2m); time.push(...j.hourly.time); }
+  const bissextile = a => (a % 4 === 0 && a % 100 !== 0) || a % 400 === 0;
+  return { T, H, time, debut, fin, nAns: annees.length, altRef: res[0].elevation,
+    heuresAn: annees.reduce((s, a) => s + 24 * (bissextile(a) ? 366 : 365), 0) };
+}
+
+function analyse(raw, alt) {
+  const dz = alt == null ? 0 : alt - raw.altRef, n = raw.T.length;
+  const T = new Float64Array(n), H = new Float64Array(n), jours = new Map();
+  let nv = 0, iMax = -1, h30 = 0;
+  for (let i = 0; i < n; i++) {
+    const t0 = raw.T[i], h0 = raw.H[i];
+    if (t0 == null) { T[i] = NaN; H[i] = NaN; continue; }
+    const t = t0 + GRADIENT * dz;
+    T[i] = t; nv++;
+    // Point de rosée conservé : l'humidité relative suit la température corrigée
+    H[i] = h0 == null ? NaN : dz === 0 ? h0 : hrDepuisRosee(t, rosee(t0, h0));
     if (iMax < 0 || t > T[iMax]) iMax = i;
-    if (iMin < 0 || t < T[iMin]) iMin = i;
-    const d = Math.floor(time[i] / 86400), m = jours.get(d);
+    if (t > 30) h30++;
+    const d = Math.floor(raw.time[i] / 86400), m = jours.get(d);
     if (m) { if (t < m[0]) m[0] = t; if (t > m[1]) m[1] = t; } else jours.set(d, [t, t]);
   }
-  if (vals.length < 8760) throw new Error("série climatique incomplète");
-  const s = Float64Array.from(vals).sort(), n = s.length, ans = n / 8766;
-  const depassee = p => s[Math.min(n - 1, Math.floor(n * (1 - p / 100)))];
+  if (nv < 24 * JOURS_ETE * 0.9) throw new Error("série climatique incomplète");
+  // Seuil dépassé p % des heures de l'année entière : la fenêtre mai-septembre contient toutes ces heures
+  const s = Float64Array.from(T.filter(x => !isNaN(x))).sort();
+  const depassee = p => s[Math.max(0, s.length - Math.max(1, Math.round(raw.heuresAn * p / 100)))];
   const coincident = db => {
     for (const ecart of [0.5, 1, 2]) {
       let sw = 0, sh = 0, k = 0;
-      for (let i = 0; i < T.length; i++) {
-        if (T[i] == null || H[i] == null || Math.abs(T[i] - db) > ecart) continue;
+      for (let i = 0; i < n; i++) {
+        if (isNaN(T[i]) || isNaN(H[i]) || Math.abs(T[i] - db) > ecart) continue;
         sw += tHumide(T[i], H[i]); sh += H[i]; k++;
       }
       if (k >= 10) return { th: sw / k, hr: sh / k };
@@ -437,13 +704,108 @@ function analyse(j) {
   const niveaux = [0.4, 1, 2].map(p => { const ts = depassee(p); return { p, ts, ...coincident(ts) }; });
   let se = 0, ke = 0;
   for (const [mn, mx] of jours.values()) if (mx >= niveaux[1].ts) { se += mx - mn; ke++; }
-  let h30 = 0;
-  for (const t of vals) if (t > 30) h30++;
   return {
-    niveaux, tmax: T[iMax], dmax: time[iMax], tmin: T[iMin], dmin: time[iMin],
-    hiver996: s[Math.floor(n * 0.004)], ecartDiurne: ke ? se / ke : null, h30: h30 / ans,
-    altCalc: j.elevation
+    niveaux, tmax: T[iMax], dmax: raw.time[iMax], ecartDiurne: ke ? se / ke : null, h30: h30 / raw.nAns,
+    altCalc: alt ?? raw.altRef, altRef: raw.altRef, debut: raw.debut, fin: raw.fin
   };
+}
+
+// ---------- Icônes, thème, panneau "À propos" (mêmes mécaniques que les autres outils B27) ----------
+
+// Tracés Lucide (licence ISC), dessinés en trait sur une grille de 24
+const TRACES_ICONES = {
+  thermometre: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+  flocon: '<line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/>',
+  soleil: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
+  lune: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  repere: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
+  maison: '<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  immeuble: '<rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/>',
+  carte: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>',
+  presse_papier: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+  valider: '<path d="M20 6 9 17l-5-5"/>',
+  attention: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  engrenage: '<path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>',
+  fermer: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  livre: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  base_donnees: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  historique: '<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>'
+};
+function ico(nom, taille) {
+  const traces = TRACES_ICONES[nom] || TRACES_ICONES.info;
+  return '<svg class="ico" width="' + (taille || 16) + '" height="' + (taille || 16) + '" viewBox="0 0 24 24"'
+    + ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+    + ' aria-hidden="true">' + traces + '</svg>';
+}
+// Tout élément portant data-ico reçoit l'icône correspondante en tête de son contenu.
+function poserIcones(racine) {
+  (racine || document).querySelectorAll("[data-ico]").forEach(el => {
+    if (el.dataset.icoPose) return;
+    el.insertAdjacentHTML("afterbegin", ico(el.dataset.ico, +el.dataset.icoTaille || 16));
+    el.dataset.icoPose = "1";
+  });
+}
+
+function appliquerTheme(t) {
+  document.documentElement.dataset.theme = t;
+  const b = $("#btnTheme");
+  b.innerHTML = ico(t === "dark" ? "soleil" : "lune", 16);
+  b.title = t === "dark" ? "Passer en thème clair" : "Passer en thème sombre";
+}
+function themeMemorise() { try { return localStorage.getItem("temperatures_reference_theme"); } catch (e) { return null; } }
+function initTheme() {
+  const systeme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  appliquerTheme(themeMemorise() || systeme());
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ev => {
+    if (!themeMemorise()) appliquerTheme(ev.matches ? "dark" : "light");
+  });
+  $("#btnTheme").addEventListener("click", () => {
+    const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    try { localStorage.setItem("temperatures_reference_theme", t); } catch (e) {}
+    appliquerTheme(t);
+  });
+}
+
+// Journal des versions : deux ou trois phrases par version, le détail va dans JOURNAL.md
+const CHANGELOG = [
+  { v: "v2", date: "2026-10-22", titre: "Aux couleurs des outils B27",
+    texte: "La page reprend la charte des outils B27 : palette olive, thème clair ou sombre à un clic, en-tête fixe et panneau À propos avec la méthode, les sources et ce journal. Le calcul d'été ne télécharge plus que mai à septembre et corrige l'altitude en local : deux fois et demie moins de requêtes, et plus aucune quand on change l'altitude. Le lien affiche une image d'aperçu dans Teams, Outlook ou une messagerie." },
+  { v: "v1", date: "2026-10-22", titre: "Première version",
+    texte: "Température de base hiver selon la NF P52-612/CN (tableaux D.1a et D.1b, ligne littorale, extrapolation signalée hors table) et base été calculée au point du site sur les données horaires ERA5. Saisie par adresse, commune, département ou clic sur la carte, altitude lue au point." }
+];
+
+const SOURCES = [
+  ["Hiver", 'NF EN 12831 et complément national <a href="https://www.boutique.afnor.org/en-gb/standard/nf-p52612-cn/heating-systems-in-buildings-method-for-calculation-of-the-design-heat-load/fa165533/36563" target="_blank" rel="noopener">NF P52-612/CN</a> (décembre 2010), tableaux D.1a et D.1b'],
+  ["Relevé des tableaux", '<a href="https://www.thermexcel.com/french/divers/ThermExcel%20-%20Programme%20DeperTherm%202015.pdf" target="_blank" rel="noopener">ThermExcel, DeperTherm 2015</a>, et carte de la norme pour 75, 92, 93 et 94'],
+  ["Niveaux de dépassement été", "ASHRAE Handbook Fundamentals, chapitre Climatic Design Information : 0,4 %, 1 % et 2 % des heures de l'année"],
+  ["Température humide", "Stull (2011), Wet-Bulb Temperature from Relative Humidity and Air Temperature, Journal of Applied Meteorology and Climatology"],
+  ["Données climatiques", '<a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noopener">Open-Meteo</a>, réanalyses ERA5 et ERA5-Land du Copernicus Climate Change Service, licence CC BY 4.0'],
+  ["Géocodage, altitude, fond de carte", '<a href="https://geoservices.ign.fr/" target="_blank" rel="noopener">IGN Géoplateforme</a> : géocodage BAN, RGE ALTI, Plan IGN ; communes par <a href="https://geo.api.gouv.fr/" target="_blank" rel="noopener">geo.api.gouv.fr</a>']
+];
+
+const dateFr = iso => iso.split("-").reverse().join("/");
+
+function ouvrirApropos() {
+  const metro = DEPARTEMENTS.filter(d => d[2] != null).length, om = DEPARTEMENTS.length - metro, act = CHANGELOG[0];
+  const groupe = (icone, titre, html) => `<section class="stats-groupe"><h3>${ico(icone, 14)}${titre}</h3>${html}</section>`;
+  const liste = (rows, cls) => `<dl class="stats-liste ${cls || ""}">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>`;
+  $("#aproposCorps").innerHTML = [
+    groupe("info", "L'outil", liste([
+      ["Version", `${act.v} du ${dateFr(act.date)}`],
+      ["Départements avec valeur d'hiver", `${metro}, en métropole`],
+      ["Départements d'outre-mer", `${om}, base été seule`],
+      ["Tranches d'altitude du tableau D.1b", `${TRANCHES.length}, de 0 à plus de 3000 m`]
+    ])),
+    groupe("livre", "Méthode", `<div class="methodo">
+      <p><b>Hiver.</b> Température extérieure de base θe,b de la NF EN 12831, complément national NF P52-612/CN : valeur départementale ramenée au niveau de la mer (tableau D.1a), puis valeur de la tranche d'altitude du site (tableau D.1b). Une ligne particulière du tableau D.1b donne la valeur des sites à moins de 25 km de la côte. Au-delà de la dernière tranche renseignée pour une zone, la valeur est extrapolée sur le gradient de la colonne et signalée. Pour un département à cheval sur deux zones, la carte de la norme fait foi. Sur un versant ensoleillé, on ne retient pas de valeur inférieure à -25 °C.</p>
+      <p><b>Été.</b> Il n'existe pas de table normative nationale. La valeur est calculée au point du site à partir des données horaires de réanalyse ERA5 et ERA5-Land de mai à septembre, période qui contient toutes les heures les plus chaudes de l'année : température sèche dépassée 0,4 %, 1 % ou 2 % des heures de l'année entière, avec la température humide moyenne des heures où la température sèche est proche de cette valeur. Les données sont ramenées à l'altitude saisie par le gradient standard de -6,5 K/km, point de rosée conservé. En département seul, le point climatique est la préfecture.</p>
+    </div>`),
+    groupe("base_donnees", "Sources", liste(SOURCES, "gauche")),
+    groupe("historique", "Journal des versions", `<ul class="changelog">${CHANGELOG.map((c, i) =>
+      `<li class="${i === 0 ? "actuelle" : ""}"><span class="cl-ver">${c.v}</span><span class="cl-titre">${c.titre} <span class="cl-date">${dateFr(c.date)}</span></span><span class="cl-txt">${c.texte}</span></li>`).join("")}</ul>`)
+  ].join("");
+  $("#dlgApropos").showModal();
 }
 
 // ---------- Interface ----------
@@ -453,6 +815,7 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "
 const num = (v, d = 1) => v == null || !isFinite(v) ? "-" : v.toFixed(d).replace(".", ",");
 const date = ts => new Date(ts * 1000).toLocaleDateString("fr-FR");
 const pctLabel = p => String(p).replace(".", ",") + " %";
+const note = (genre, texte) => `<p class="note ${genre}">${ico(genre === "info" ? "info" : "attention", 15)}<span>${texte}</span></p>`;
 
 const state = { dep: null, lat: null, lon: null, label: "", point: "", clim: null };
 let locSeq = 0, altManuelle = false;
@@ -465,11 +828,12 @@ function initMap() {
   L.tileLayer("https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
     { maxZoom: 19, attribution: "&copy; IGN Géoplateforme" }).addTo(map);
   map.on("click", e => locateFromMap(e.latlng.lat, e.latlng.lng));
-  window.addEventListener("load", () => map.invalidateSize());
+  // La carte se recale sur sa vraie taille dès que la mise en page bouge (icônes, polices, colonnes)
+  new ResizeObserver(() => map.invalidateSize()).observe($("#map"));
 }
 function showOnMap(lat, lon, zoom) {
   if (!map || lat == null) return;
-  if (!marker) marker = L.circleMarker([lat, lon], { radius: 8, color: "#fff", weight: 2, fillColor: "#c2410c", fillOpacity: 1 }).addTo(map);
+  if (!marker) marker = L.circleMarker([lat, lon], { radius: 8, color: "#fff", weight: 2, fillColor: "#7da32f", fillOpacity: 1 }).addTo(map);
   else marker.setLatLng([lat, lon]);
   map.setView([lat, lon], zoom ?? map.getZoom());
 }
@@ -620,7 +984,7 @@ function updateWinter() {
     const rows = [
       ["Département", `${d.code} ${esc(d.nom)}`],
       ["θe,b au niveau de la mer (D.1a)", `${r.mer} °C`],
-      ["Tranche d'altitude (D.1b)", `${r.tranche} (site à ${Math.round(alt)} m)`],
+      ["Tranche d'altitude (D.1b)", `${r.tranche} <small>(site à ${Math.round(alt)} m)</small>`],
       ["Correction d'altitude", `${(r.sansLittoral ?? r.valeur) - r.mer} K`]
     ];
     if (r.littoral === "applique") rows.push(["Ligne côte < 25 km (D.1b)", `${r.valeur} °C au lieu de ${r.sansLittoral} °C`]);
@@ -630,9 +994,7 @@ function updateWinter() {
     if (r.valeur < -25) notes.push(["info", "Sur un versant ensoleillé, la norme ne retient pas de valeur inférieure à -25 °C."]);
   }
   if (d && ["92", "93", "94"].includes(d.code)) notes.push(["info", "Carte de la norme : Paris et petite couronne (75, 92, 93, 94) à -5 °C. Certaines reproductions du tableau D.1a indiquent -7 °C pour 92, 93 et 94."]);
-  const c = state.clim;
-  if (c && d && d.tb != null) notes.push(["info", `Contrôle sur le climat local ${c.debut}-${c.fin} : 99,6 % des heures au-dessus de ${num(c.hiver996)} °C, minimum horaire ${num(c.tmin)} °C le ${date(c.dmin)}.`]);
-  $("#w-notes").innerHTML = notes.map(([k, t]) => `<p class="note ${k}">${t}</p>`).join("");
+  $("#w-notes").innerHTML = notes.map(([k, t]) => note(k, t)).join("");
 }
 
 // Résultats été
@@ -649,16 +1011,23 @@ async function runSummer() {
     summerStatus(""); updateWinter(); return;
   }
   const altVal = parseFloat($("#alt").value), alt = isFinite(altVal) ? altVal : null, ans = +$("#period").value;
-  summerStatus(`<span class="spin"></span> Analyse de ${ans} ans de données horaires au point du site...`);
+  summerStatus(`<span class="spin"></span> Analyse de ${ans} étés de données horaires au point du site...`);
   try {
-    const c = await climat(state.lat, state.lon, alt, ans);
+    // Pour un même point et une même période, les données sont en cache : un changement
+    // d'altitude se recalcule en local, sans nouvelle requête
+    const raw = await climat(state.lat, state.lon, ans);
     if (tok !== summerSeq) return;
-    state.clim = c; summerStatus(""); renderSummer(); updateWinter();
+    state.clim = analyse(raw, alt); summerStatus(""); renderSummer();
   } catch (e) {
     if (tok !== summerSeq) return;
     state.clim = null; $("#s-body").hidden = true; $("#s-val").textContent = "-"; $("#s-sub").textContent = "";
-    summerStatus(`<p class="note err" style="margin:0">Données climatiques indisponibles (${esc(e.message)}). Vérifier la connexion internet.</p>`);
-    updateWinter();
+    if (e.limite) {
+      summerStatus(note("warn", `Le service climatique gratuit (Open-Meteo) limite le nombre de requêtes par minute, et une analyse sur ${ans} ans en consomme environ ${coutAnalyse(ans)} sur 600. Nouvel essai automatique dans une minute.`));
+      clearTimeout(summerTimer);
+      summerTimer = setTimeout(() => { if (tok === summerSeq) runSummer(); }, 61000);
+    } else {
+      summerStatus(note("err", `Données climatiques indisponibles (${esc(e.message)}). Vérifier la connexion internet.`));
+    }
   }
 }
 
@@ -669,13 +1038,14 @@ function renderSummer() {
   $("#s-sub").textContent = L.th != null
     ? `Température sèche dépassée ${pctLabel(p)} des heures, avec ${num(L.th)} °C humide coïncidente`
     : `Température sèche dépassée ${pctLabel(p)} des heures`;
-  $("#s-tab").innerHTML = c.niveaux.map(x => `<tr class="${x.p === p ? "sel" : ""}"><td>${pctLabel(x.p)}</td><td>${num(x.ts)} °C</td><td>${num(x.th)} °C</td><td>${num(x.hr, 0)} %</td></tr>`).join("");
+  $("#s-tab").innerHTML = c.niveaux.map(x => `<tr class="${x.p === p ? "reco" : ""}"><td>${pctLabel(x.p)}</td><td>${num(x.ts)} °C</td><td>${num(x.th)} °C</td><td>${num(x.hr, 0)} %</td></tr>`).join("");
   const pos = `${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}`;
   $("#s-det").innerHTML = [
     ["Point climatique", `${esc(state.label)}<br><small>${esc(state.point ? state.point + ", " : "")}${pos}</small>`],
-    ["Altitude de calcul", c.altCalc != null ? `${Math.round(c.altCalc)} m` : "-"],
-    ["Période", `${c.debut} à ${c.fin} (ERA5, ERA5-Land)`],
-    ["Maximum horaire de la période", `${num(c.tmax)} °C le ${date(c.dmax)}`],
+    ["Altitude de calcul", Math.round(c.altCalc) === Math.round(c.altRef) ? `${Math.round(c.altCalc)} m`
+      : `${Math.round(c.altCalc)} m<br><small>données à ${Math.round(c.altRef)} m, ramenées par -6,5 K/km</small>`],
+    ["Période", `étés ${c.debut} à ${c.fin} <small>(ERA5, ERA5-Land)</small>`],
+    ["Maximum horaire de la période", `${num(c.tmax)} °C <small>le ${date(c.dmax)}</small>`],
     ["Écart diurne moyen des jours chauds", c.ecartDiurne != null ? `${num(c.ecartDiurne)} K` : "-"],
     ["Heures au-dessus de 30 °C", `${num(c.h30, 0)} h/an`]
   ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
@@ -687,6 +1057,10 @@ $("#alt").addEventListener("input", () => { altManuelle = true; $("#alt-hint").t
 $("#coast").addEventListener("change", updateWinter);
 $("#pct").addEventListener("change", renderSummer);
 $("#period").addEventListener("change", () => scheduleSummer(0));
+$("#btnApropos").addEventListener("click", ouvrirApropos);
+$("#btnAproposFermer").addEventListener("click", () => $("#dlgApropos").close());
+// Clic en dehors du panneau : la zone hors contenu appartient au <dialog> lui-même
+$("#dlgApropos").addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 
 // Copie du résultat
 $("#copy").addEventListener("click", async () => {
@@ -707,9 +1081,13 @@ $("#copy").addEventListener("click", async () => {
     const ta = document.createElement("textarea"); ta.value = txt; document.body.append(ta); ta.select();
     document.execCommand("copy"); ta.remove();
   }
-  const b = $("#copy"), t = b.textContent; b.textContent = "Copié"; setTimeout(() => b.textContent = t, 1500);
+  const b = $("#copy"), h = b.innerHTML;
+  b.innerHTML = ico("valider") + "Copié";
+  setTimeout(() => b.innerHTML = h, 1500);
 });
 
+poserIcones();
+initTheme();
 initMap();
 </script>
 </body>
