@@ -585,13 +585,14 @@ async function locateFromDep(code) {
 async function locateFromMap(lat, lon) {
   const tok = locSeq + 1;
   const pos = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-  const cp = communeAt(lat, lon);
+  // Le département s'affiche dès que la commune est connue, sans attendre l'altitude
+  communeAt(lat, lon).then(c => {
+    if (tok !== locSeq) return;
+    state.dep = c ? c.codeDepartement : null;
+    state.label = c ? c.nom : "Point hors commune française";
+    syncSelects(); renderDep(); updateWinter(); renderSummer();
+  });
   await locate({ lat, lon, dep: null, label: `Point ${pos}`, point: "point cliqué sur la carte", fetchAlt: true, altWhere: "au point cliqué" });
-  const c = await cp;
-  if (tok !== locSeq) return;
-  state.dep = c ? c.codeDepartement : null;
-  state.label = c ? c.nom : "Point hors commune française";
-  syncSelects(); renderDep(); updateWinter();
 }
 
 function renderDep() {
