@@ -182,6 +182,38 @@ main.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18p
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media (max-width: 480px){ .grid2{grid-template-columns:1fr} }
 .hint{font-size:11.5px;color:var(--discret);font-weight:400;line-height:1.45;margin:6px 0 0;min-height:1.2em}
+.fld-tete{display:flex;align-items:center;gap:6px}
+.fld-tete > label{font-size:12px;font-weight:600;color:var(--encre-2);line-height:1.35}
+
+/* Bouton (i) et panneau d'aide, repris de la Calculette ECS. L'API Popover place le panneau
+   dans le calque supérieur ; repli par classe si le navigateur ne la connaît pas. */
+.btn-aide{
+  appearance:none;flex:none;width:17px;height:17px;padding:0;
+  border:1px solid var(--ligne);border-radius:50%;background:var(--papier);color:var(--discret);
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+  transition:color var(--vitesse),border-color var(--vitesse),background-color var(--vitesse);
+}
+.btn-aide .ico{vertical-align:0}
+.btn-aide:hover{color:var(--primaire-encre);border-color:var(--primaire);background:var(--primaire-fond)}
+.btn-aide[aria-expanded="true"]{color:var(--sur-primaire);border-color:var(--primaire);background:var(--primaire)}
+.btn-aide:focus-visible{outline:none;box-shadow:0 0 0 3px var(--anneau)}
+#popAide{
+  position:fixed;margin:0;inset:auto;width:max-content;
+  max-width:min(380px,calc(100vw - 24px));
+  padding:12px 14px;border:1px solid var(--ligne);border-radius:var(--rayon);
+  background:var(--papier);color:var(--encre-2);
+  box-shadow:0 2px 6px rgba(0,0,0,.10),0 12px 32px rgba(0,0,0,.16);
+  font-size:12.5px;line-height:1.55;overflow:auto;
+}
+#popAide::backdrop{background:transparent}
+#popAide .aide-titre{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-weight:700;color:var(--encre);font-size:12.5px}
+#popAide p{margin:0 0 7px}
+#popAide p:last-child{margin-bottom:0}
+#popAide table{margin:4px 0 9px;font-size:12px}
+#popAide th,#popAide td{padding:4px 7px}
+#popAide b{color:var(--encre)}
+#popAide.sans-popover{display:none}
+#popAide.sans-popover.ouvert{display:block}
 .ligne{display:flex;align-items:center;gap:6px}
 .unite{color:var(--discret);font-size:12px}
 input[type=number],input[type=text],select{
@@ -299,7 +331,7 @@ footer.pied div + div{margin-top:4px}
     --froid:#1a5f79;--haute:#a8332c;--note-fond:#fdf6e6;--note-bord:#c39434;--ombre:none;
   }
   header{position:static}
-  .noprint,#map,.tabs,[data-pane],.hint,.controls,.status{display:none !important}
+  .noprint,#map,.tabs,[data-pane],.hint,.controls,.status,#popAide,.btn-aide{display:none !important}
   main.cols{display:block}
   .panel{break-inside:avoid;box-shadow:none;border:1px solid var(--ligne)}
 }
@@ -330,6 +362,8 @@ footer.pied div + div{margin-top:4px}
   </div>
   <div class="modale-corps" id="aproposCorps"></div>
 </dialog>
+
+<div id="popAide" popover="auto" role="tooltip"></div>
 
 <div class="wrap">
   <main class="cols">
@@ -396,7 +430,10 @@ footer.pied div + div{margin-top:4px}
         <div class="body">
           <div class="controls noprint">
             <div class="fld">
-              <label for="pct">Niveau de dépassement</label>
+              <div class="fld-tete">
+                <label for="pct">Niveau de dépassement</label>
+                <button type="button" class="btn-aide" id="aide-pct" data-ico="info" data-ico-taille="11" aria-expanded="false" aria-label="Aide : niveau de dépassement" title="Ce que veut dire ce niveau, cliquer pour le détail"></button>
+              </div>
               <select id="pct">
                 <option value="0.4">0,4 % des heures (35 h/an)</option>
                 <option value="1">1 % des heures (88 h/an)</option>
@@ -769,6 +806,8 @@ function initTheme() {
 
 // Journal des versions : deux ou trois phrases par version, le détail va dans JOURNAL.md
 const CHANGELOG = [
+  { v: "v3", date: "2026-10-22", titre: "Le niveau de dépassement expliqué",
+    texte: "Un bouton (i) à côté du niveau de dépassement dit ce qu'il signifie : le nombre d'heures par an au-dessus de la valeur, les trois valeurs du site, et lequel choisir selon l'usage du bâtiment." },
   { v: "v2", date: "2026-10-22", titre: "Aux couleurs des outils B27",
     texte: "La page reprend la charte des outils B27 : palette olive, thème clair ou sombre à un clic, en-tête fixe et panneau À propos avec la méthode, les sources et ce journal. Le calcul d'été ne télécharge plus que mai à septembre et corrige l'altitude en local : deux fois et demie moins de requêtes, et plus aucune quand on change l'altitude. Le lien affiche une image d'aperçu dans Teams, Outlook ou une messagerie." },
   { v: "v1", date: "2026-10-22", titre: "Première version",
@@ -806,6 +845,90 @@ function ouvrirApropos() {
       `<li class="${i === 0 ? "actuelle" : ""}"><span class="cl-ver">${c.v}</span><span class="cl-titre">${c.titre} <span class="cl-date">${dateFr(c.date)}</span></span><span class="cl-txt">${c.texte}</span></li>`).join("")}</ul>`)
   ].join("");
   $("#dlgApropos").showModal();
+}
+
+// Panneau d'aide (bouton (i)), même mécanique que la Calculette ECS
+let aideCourante = null;
+
+function fermerAide() {
+  const pop = $("#popAide");
+  if (pop.hidePopover && pop.hasAttribute("popover")) { try { pop.hidePopover(); } catch (e) { /* déjà fermé */ } }
+  pop.classList.remove("ouvert");
+  if (aideCourante) aideCourante.setAttribute("aria-expanded", "false");
+  aideCourante = null;
+}
+
+function placerAide(pop, btn) {
+  const r = btn.getBoundingClientRect(), p = pop.getBoundingClientRect();
+  const marge = 10, ecart = 7;
+  const gauche = Math.max(marge, Math.min(r.left, window.innerWidth - p.width - marge));
+  const dessous = window.innerHeight - r.bottom - ecart - marge, dessus = r.top - ecart - marge;
+  let haut;
+  if (p.height <= dessous) haut = r.bottom + ecart;
+  else if (p.height <= dessus) haut = r.top - ecart - p.height;   // bascule au-dessus
+  else {
+    // Ne tient ni dessous ni dessus : le panneau prend le plus grand des deux côtés et défile,
+    // plutôt que de recouvrir le bouton qui sert à le refermer
+    const place = Math.max(dessous, dessus);
+    pop.style.maxHeight = place + "px";
+    haut = dessous >= dessus ? r.bottom + ecart : r.top - ecart - place;
+  }
+  pop.style.left = Math.round(gauche) + "px";
+  pop.style.top = Math.round(haut) + "px";
+}
+
+function basculerAide(btn, titre, html) {
+  const pop = $("#popAide");
+  if (aideCourante === btn) { fermerAide(); return; }
+  fermerAide();
+  pop.innerHTML = `<span class="aide-titre">${ico("info", 14)}${titre}</span>${html}`;
+  pop.style.maxHeight = "";
+  aideCourante = btn;
+  btn.setAttribute("aria-expanded", "true");
+  if (pop.showPopover && pop.hasAttribute("popover")) pop.showPopover();
+  else pop.classList.add("ouvert");
+  placerAide(pop, btn);   // après affichage : le panneau doit être mesurable
+}
+
+function brancherAide(btn, titre, contenu) {
+  // Un clic sur le bouton d'une aide ouverte la referme : le navigateur ferme d'abord le
+  // panneau (clic extérieur), on retient donc à l'appui qu'elle était ouverte
+  let ouverteAuClic = false;
+  btn.addEventListener("pointerdown", () => { ouverteAuClic = aideCourante === btn; });
+  btn.addEventListener("click", ev => {
+    ev.stopPropagation();
+    if (ouverteAuClic) { ouverteAuClic = false; fermerAide(); return; }
+    basculerAide(btn, titre, contenu());
+  });
+}
+
+function initAide() {
+  const pop = $("#popAide");
+  if (!("popover" in HTMLElement.prototype)) {
+    pop.removeAttribute("popover");
+    pop.classList.add("sans-popover");
+    document.addEventListener("click", ev => { if (aideCourante && !pop.contains(ev.target)) fermerAide(); });
+    document.addEventListener("keydown", ev => { if (ev.key === "Escape") fermerAide(); });
+  } else {
+    pop.addEventListener("toggle", ev => { if (ev.newState === "closed") fermerAide(); });
+  }
+  // Un défilement déplacerait le bouton sans déplacer le panneau : on ferme, sauf quand c'est
+  // le panneau lui-même qui défile
+  window.addEventListener("scroll", ev => { if (!pop.contains(ev.target)) fermerAide(); }, true);
+  window.addEventListener("resize", fermerAide);
+}
+
+// Aide du niveau de dépassement : les valeurs du site s'y ajoutent dès qu'elles sont calculées
+function aideNiveau() {
+  const c = state.clim;
+  const lignes = [0.4, 1, 2].map(p => {
+    const L = c && c.niveaux.find(x => x.p === p);
+    return `<tr><td>${pctLabel(p)}</td><td>${Math.round(8760 * p / 100)} h/an</td>${c ? `<td>${num(L.ts)} °C</td>` : ""}</tr>`;
+  }).join("");
+  return `<p>C'est le nombre d'heures par an où la température extérieure dépasse la valeur affichée. On ne dimensionne pas sur le record : on accepte quelques heures plus chaudes, surtout des fins d'après-midi de canicule, pendant lesquelles la clim tourne à fond et l'intérieur monte d'un ou deux degrés au-dessus de la consigne.</p>
+    <table><thead><tr><th>Niveau</th><th>Heures au-dessus</th>${c ? "<th>Ce site</th>" : ""}</tr></thead><tbody>${lignes}</tbody></table>
+    <p><b>0,4 %</b> : quand un dépassement pose problème (salle serveur, local médical, laboratoire).<br><b>1 %</b> : climatisation de confort courante en tertiaire (bureaux, commerces).<br><b>2 %</b> : quelques heures chaudes acceptables (logement, simple rafraîchissement).</p>
+    <p>${c ? `Pour comparaison, le maximum horaire de la période est ici de ${num(c.tmax)} °C, le ${date(c.dmax)}. ` : ""}Même principe que la base hiver, qui n'est pas non plus un record de froid. Seuils de l'ASHRAE.</p>`;
 }
 
 // ---------- Interface ----------
@@ -1086,8 +1209,11 @@ $("#copy").addEventListener("click", async () => {
   setTimeout(() => b.innerHTML = h, 1500);
 });
 
+brancherAide($("#aide-pct"), "Niveau de dépassement", aideNiveau);
+
 poserIcones();
 initTheme();
+initAide();
 initMap();
 </script>
 </body>
