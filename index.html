@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Températures de référence</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --ink: #1b2330; --muted: #5d6878; --line: #dfe3e9; --field: #ffffff;
+    --accent: #1d5fa7; --cold: #1d5fa7; --cold-bg: #eaf1fb; --hot: #b9440f; --hot-bg: #fcefe7;
+    --warn: #6e4a00; --warn-bg: #fff4d1; --err: #a3231b; --err-bg: #fdeceb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c; --card: #1b2028; --ink: #e5e9ef; --muted: #9aa4b2; --line: #2d3540; --field: #141920;
+      --accent: #74a9ea; --cold: #8bbcf2; --cold-bg: #182638; --hot: #f39a66; --hot-bg: #352217;
+      --warn: #f1c96d; --warn-bg: #352c16; --err: #f39b93; --err-bg: #3a1c1a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header, main, footer { max-width: 1180px; margin: 0 auto; padding-left: 16px; padding-right: 16px; }
+  header { padding-top: 28px; }
+  h1 { font-size: 1.55rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); max-width: 75ch; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding-top: 18px; padding-bottom: 16px; align-items: start; }
+  @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+  .stack { display: grid; gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+  h2 { font-size: 1rem; margin: 0 0 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+  .tabs { display: flex; gap: 4px; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; margin-bottom: 14px; }
+  .tabs button { flex: 1; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 600; padding: 7px 8px; border-radius: 6px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+
+  label { display: block; font-size: .85rem; font-weight: 600; color: var(--muted); }
+  input[type=text], input[type=number], select {
+    display: block; width: 100%; margin-top: 4px; padding: 9px 11px; font: inherit; font-weight: 400; color: var(--ink);
+    background: var(--field); border: 1px solid var(--line); border-radius: 8px;
+  }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 480px) { .row2 { grid-template-columns: 1fr; } }
+  .ac { position: relative; }
+  .suggest { position: absolute; z-index: 1000; left: 0; right: 0; top: 100%; margin: 4px 0 0; padding: 4px; list-style: none;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: 300px; overflow: auto; }
+  .suggest li { padding: 7px 9px; border-radius: 6px; cursor: pointer; }
+  .suggest li small { display: block; color: var(--muted); }
+  .suggest li[aria-selected="true"], .suggest li:hover { background: var(--cold-bg); }
+  .suggest li.msg { cursor: default; color: var(--muted); }
+  .suggest li.msg:hover { background: none; }
+
+  #map { height: 270px; margin-top: 14px; border-radius: 8px; border: 1px solid var(--line); position: relative; z-index: 0; }
+  .hint { font-size: .82rem; color: var(--muted); margin: 6px 0 0; min-height: 1.2em; }
+  .site { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
+  .readout { margin-top: 4px; padding: 9px 11px; border-radius: 8px; background: var(--bg); color: var(--ink); font-weight: 400; min-height: 40px; }
+  .check { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; color: var(--ink); font-size: .88rem; }
+  .check input { margin-top: 3px; }
+  .check.off { color: var(--muted); }
+
+  .res .big { font-size: 3rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .res .sub { margin: 4px 0 0; color: var(--muted); min-height: 1.4em; }
+  .winter .big { color: var(--cold); }
+  .summer .big { color: var(--hot); }
+  .tag { font-size: .75rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+  .winter .tag { background: var(--cold-bg); color: var(--cold); }
+  .summer .tag { background: var(--hot-bg); color: var(--hot); }
+  dl { display: grid; grid-template-columns: auto 1fr; margin: 14px 0 0; font-size: .9rem; }
+  dt, dd { padding: 6px 0; border-top: 1px solid var(--line); }
+  dt { color: var(--muted); padding-right: 12px; }
+  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .note { font-size: .85rem; padding: 8px 11px; border-radius: 8px; margin: 10px 0 0; }
+  .note.warn { background: var(--warn-bg); color: var(--warn); }
+  .note.err { background: var(--err-bg); color: var(--err); }
+  .note.info { background: var(--bg); color: var(--muted); }
+  .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 8px; text-align: right; border-top: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: .8rem; }
+  tr.sel td { background: var(--hot-bg); font-weight: 600; }
+  .status { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .88rem; margin-top: 8px; min-height: 1.4em; }
+  .spin { width: 14px; height: 14px; border: 2px solid var(--line); border-top-color: var(--hot); border-radius: 50%; animation: r 0.8s linear infinite; }
+  @keyframes r { to { transform: rotate(360deg); } }
+  .btn { font: inherit; font-size: .85rem; font-weight: 600; color: var(--accent); background: transparent; border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { background: var(--bg); }
+  footer { padding-bottom: 32px; color: var(--muted); font-size: .86rem; }
+  footer details { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 18px; }
+  footer summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+  footer li { margin: 6px 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Températures de référence</h1>
+  <p>Température extérieure de base hiver selon NF EN 12831 et son complément national NF P52-612/CN, et température de base été calculée sur le climat local du site.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Site</h2>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-mode="adresse" aria-selected="true">Adresse</button>
+      <button role="tab" data-mode="commune" aria-selected="false">Commune</button>
+      <button role="tab" data-mode="departement" aria-selected="false">Région / département</button>
+    </div>
+
+    <div data-pane="adresse">
+      <label>Adresse du site
+        <div class="ac">
+          <input type="text" id="q-adresse" placeholder="ex. 12 rue de la République, Lyon" autocomplete="off">
+          <ul class="suggest" id="s-adresse" role="listbox" hidden></ul>
+        </div>
+      </label>
+    </div>
+    <div data-pane="commune" hidden>
+      <label>Commune ou code postal
+        <div class="ac">
+          <input type="text" id="q-commune" placeholder="ex. Briançon ou 05100" autocomplete="off">
+          <ul class="suggest" id="s-commune" role="listbox" hidden></ul>
+        </div>
+      </label>
+    </div>
+    <div data-pane="departement" hidden>
+      <div class="row2">
+        <label>Région<select id="sel-region"></select></label>
+        <label>Département<select id="sel-dep"></select></label>
+      </div>
+    </div>
+
+    <div id="map"></div>
+    <p class="hint" id="map-hint">Un clic sur la carte place ou déplace le site.</p>
+
+    <div class="site">
+      <div class="row2">
+        <label>Département retenu<div class="readout" id="out-dep">-</div></label>
+        <label>Altitude du site (m)<input type="number" id="alt" step="1" min="-10" max="4810" inputmode="numeric" placeholder="à saisir"></label>
+      </div>
+      <p class="hint" id="alt-hint"></p>
+      <label class="check" id="coast-wrap"><input type="checkbox" id="coast"> <span>Site à moins de 25 km de la mer (zones en pointillés de la carte de la norme)</span></label>
+    </div>
+  </section>
+
+  <div class="stack">
+    <section class="card res winter">
+      <h2>Hiver : température extérieure de base <span class="tag">NF P52-612/CN</span></h2>
+      <div class="big" id="w-val">-</div>
+      <p class="sub" id="w-sub">Choisir un site pour obtenir la valeur.</p>
+      <dl id="w-det"></dl>
+      <div id="w-notes"></div>
+    </section>
+
+    <section class="card res summer">
+      <h2>Été : température extérieure de base <span class="tag">Climat local</span></h2>
+      <div class="controls">
+        <label>Niveau de dépassement
+          <select id="pct">
+            <option value="0.4">0,4 % des heures (35 h/an)</option>
+            <option value="1">1 % des heures (88 h/an)</option>
+            <option value="2">2 % des heures (175 h/an)</option>
+          </select>
+        </label>
+        <label>Période analysée
+          <select id="period">
+            <option value="10">10 dernières années</option>
+            <option value="20">20 dernières années</option>
+            <option value="30">30 dernières années</option>
+          </select>
+        </label>
+      </div>
+      <div class="big" id="s-val">-</div>
+      <p class="sub" id="s-sub">Choisir un site pour lancer le calcul (connexion internet nécessaire).</p>
+      <div class="status" id="s-status"></div>
+      <div id="s-body" hidden>
+        <table>
+          <thead><tr><th>Dépassement</th><th>T sèche</th><th>T humide coïncidente</th><th>HR coïncidente</th></tr></thead>
+          <tbody id="s-tab"></tbody>
+        </table>
+        <dl id="s-det"></dl>
+        <p class="note info">Les réanalyses lissent un peu les pointes de température : en ville ou en fond de vallée, la valeur réelle peut être de 1 à 2 °C plus élevée.</p>
+      </div>
+    </section>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn" id="copy">Copier le résultat</button>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <details>
+    <summary>Méthode et sources</summary>
+    <ul>
+      <li><b>Hiver.</b> Température extérieure de base θe,b de la NF EN 12831, complément national NF P52-612/CN : valeur départementale ramenée au niveau de la mer (tableau D.1a), puis valeur corrigée selon la tranche d'altitude du site (tableau D.1b). Une ligne particulière du tableau D.1b donne la valeur pour les sites à moins de 25 km de la côte. Pour un département à cheval sur deux zones, la carte de la norme fait foi. Sur un versant ensoleillé, on ne retient pas de valeur inférieure à -25 °C.</li>
+      <li><b>Été.</b> Il n'existe pas de table normative nationale. La valeur est calculée au point du site à partir des données horaires de réanalyse (ERA5 et ERA5-Land, servies par Open-Meteo et ramenées à l'altitude saisie) : température sèche dépassée 0,4 %, 1 % ou 2 % des heures de l'année (critères de l'ASHRAE Handbook Fundamentals), avec la température humide moyenne des heures où la température sèche est proche de cette valeur.</li>
+      <li><b>Services.</b> Géoplateforme IGN (géocodage BAN, altitude RGE ALTI, fond Plan IGN), geo.api.gouv.fr (communes), Open-Meteo (climat, licence CC BY 4.0, accès gratuit réservé à un usage non commercial). Données climatiques : Copernicus Climate Change Service.</li>
+    </ul>
+  </details>
+</footer>
+
+<script>
+"use strict";
+
+// ---------- Données de la norme ----------
+
+const REGIONS = [
+  ["84", "Auvergne-Rhône-Alpes"], ["27", "Bourgogne-Franche-Comté"], ["53", "Bretagne"],
+  ["24", "Centre-Val de Loire"], ["94", "Corse"], ["44", "Grand Est"], ["32", "Hauts-de-France"],
+  ["11", "Île-de-France"], ["28", "Normandie"], ["75", "Nouvelle-Aquitaine"], ["76", "Occitanie"],
+  ["52", "Pays de la Loire"], ["93", "Provence-Alpes-Côte d'Azur"],
+  ["01", "Guadeloupe"], ["02", "Martinique"], ["03", "Guyane"], ["04", "La Réunion"], ["06", "Mayotte"]
+];
+
+// code, nom, θe,b au niveau de la mer en °C (NF P52-612/CN, tableau D.1a), préfecture, région.
+// null : outre-mer, non couvert par la norme.
+// 92, 93, 94 : -5 °C comme sur la carte de la norme (certaines reproductions du tableau donnent -7 °C).
+const DEPARTEMENTS = [
+  ["01", "Ain", -10, "Bourg-en-Bresse", "84"], ["02", "Aisne", -7, "Laon", "32"],
+  ["03", "Allier", -8, "Moulins", "84"], ["04", "Alpes-de-Haute-Provence", -8, "Digne-les-Bains", "93"],
+  ["05", "Hautes-Alpes", -10, "Gap", "93"], ["06", "Alpes-Maritimes", -5, "Nice", "93"],
+  ["07", "Ardèche", -6, "Privas", "84"], ["08", "Ardennes", -10, "Charleville-Mézières", "44"],
+  ["09", "Ariège", -5, "Foix", "76"], ["10", "Aube", -10, "Troyes", "44"],
+  ["11", "Aude", -5, "Carcassonne", "76"], ["12", "Aveyron", -8, "Rodez", "76"],
+  ["13", "Bouches-du-Rhône", -5, "Marseille", "93"], ["14", "Calvados", -7, "Caen", "28"],
+  ["15", "Cantal", -8, "Aurillac", "84"], ["16", "Charente", -5, "Angoulême", "75"],
+  ["17", "Charente-Maritime", -5, "La Rochelle", "75"], ["18", "Cher", -7, "Bourges", "24"],
+  ["19", "Corrèze", -8, "Tulle", "75"], ["2A", "Corse-du-Sud", -2, "Ajaccio", "94"],
+  ["2B", "Haute-Corse", -2, "Bastia", "94"], ["21", "Côte-d'Or", -10, "Dijon", "27"],
+  ["22", "Côtes-d'Armor", -4, "Saint-Brieuc", "53"], ["23", "Creuse", -8, "Guéret", "75"],
+  ["24", "Dordogne", -5, "Périgueux", "75"], ["25", "Doubs", -12, "Besançon", "27"],
+  ["26", "Drôme", -6, "Valence", "84"], ["27", "Eure", -7, "Évreux", "28"],
+  ["28", "Eure-et-Loir", -7, "Chartres", "24"], ["29", "Finistère", -4, "Quimper", "53"],
+  ["30", "Gard", -5, "Nîmes", "76"], ["31", "Haute-Garonne", -5, "Toulouse", "76"],
+  ["32", "Gers", -5, "Auch", "76"], ["33", "Gironde", -5, "Bordeaux", "75"],
+  ["34", "Hérault", -5, "Montpellier", "76"], ["35", "Ille-et-Vilaine", -4, "Rennes", "53"],
+  ["36", "Indre", -7, "Châteauroux", "24"], ["37", "Indre-et-Loire", -7, "Tours", "24"],
+  ["38", "Isère", -10, "Grenoble", "84"], ["39", "Jura", -10, "Lons-le-Saunier", "27"],
+  ["40", "Landes", -5, "Mont-de-Marsan", "75"], ["41", "Loir-et-Cher", -7, "Blois", "24"],
+  ["42", "Loire", -10, "Saint-Étienne", "84"], ["43", "Haute-Loire", -8, "Le Puy-en-Velay", "84"],
+  ["44", "Loire-Atlantique", -5, "Nantes", "52"], ["45", "Loiret", -7, "Orléans", "24"],
+  ["46", "Lot", -6, "Cahors", "76"], ["47", "Lot-et-Garonne", -5, "Agen", "75"],
+  ["48", "Lozère", -8, "Mende", "76"], ["49", "Maine-et-Loire", -7, "Angers", "52"],
+  ["50", "Manche", -4, "Saint-Lô", "28"], ["51", "Marne", -10, "Châlons-en-Champagne", "44"],
+  ["52", "Haute-Marne", -12, "Chaumont", "44"], ["53", "Mayenne", -7, "Laval", "52"],
+  ["54", "Meurthe-et-Moselle", -15, "Nancy", "44"], ["55", "Meuse", -12, "Bar-le-Duc", "44"],
+  ["56", "Morbihan", -4, "Vannes", "53"], ["57", "Moselle", -15, "Metz", "44"],
+  ["58", "Nièvre", -10, "Nevers", "27"], ["59", "Nord", -9, "Lille", "32"],
+  ["60", "Oise", -7, "Beauvais", "32"], ["61", "Orne", -7, "Alençon", "28"],
+  ["62", "Pas-de-Calais", -9, "Arras", "32"], ["63", "Puy-de-Dôme", -8, "Clermont-Ferrand", "84"],
+  ["64", "Pyrénées-Atlantiques", -5, "Pau", "75"], ["65", "Hautes-Pyrénées", -5, "Tarbes", "76"],
+  ["66", "Pyrénées-Orientales", -5, "Perpignan", "76"], ["67", "Bas-Rhin", -15, "Strasbourg", "44"],
+  ["68", "Haut-Rhin", -15, "Colmar", "44"], ["69", "Rhône", -10, "Lyon", "84"],
+  ["70", "Haute-Saône", -10, "Vesoul", "27"], ["71", "Saône-et-Loire", -10, "Mâcon", "27"],
+  ["72", "Sarthe", -7, "Le Mans", "52"], ["73", "Savoie", -10, "Chambéry", "84"],
+  ["74", "Haute-Savoie", -10, "Annecy", "84"], ["75", "Paris", -5, "Paris", "11"],
+  ["76", "Seine-Maritime", -7, "Rouen", "28"], ["77", "Seine-et-Marne", -7, "Melun", "11"],
+  ["78", "Yvelines", -7, "Versailles", "11"], ["79", "Deux-Sèvres", -7, "Niort", "75"],
+  ["80", "Somme", -9, "Amiens", "32"], ["81", "Tarn", -5, "Albi", "76"],
+  ["82", "Tarn-et-Garonne", -5, "Montauban", "76"], ["83", "Var", -5, "Toulon", "93"],
+  ["84", "Vaucluse", -6, "Avignon", "93"], ["85", "Vendée", -5, "La Roche-sur-Yon", "52"],
+  ["86", "Vienne", -7, "Poitiers", "75"], ["87", "Haute-Vienne", -8, "Limoges", "75"],
+  ["88", "Vosges", -15, "Épinal", "44"], ["89", "Yonne", -10, "Auxerre", "27"],
+  ["90", "Territoire de Belfort", -15, "Belfort", "27"], ["91", "Essonne", -7, "Évry-Courcouronnes", "11"],
+  ["92", "Hauts-de-Seine", -5, "Nanterre", "11"], ["93", "Seine-Saint-Denis", -5, "Bobigny", "11"],
+  ["94", "Val-de-Marne", -5, "Créteil", "11"], ["95", "Val-d'Oise", -7, "Cergy", "11"],
+  ["971", "Guadeloupe", null, "Basse-Terre", "01"], ["972", "Martinique", null, "Fort-de-France", "02"],
+  ["973", "Guyane", null, "Cayenne", "03"], ["974", "La Réunion", null, "Saint-Denis", "04"],
+  ["976", "Mayotte", null, "Mamoudzou", "06"]
+];
+const DEPS = Object.fromEntries(DEPARTEMENTS.map(([code, nom, tb, pref, reg]) => [code, { code, nom, tb, pref, reg }]));
+
+// Bornes hautes des tranches d'altitude du tableau D.1b (m)
+const TRANCHES = [200, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700,
+                  1800, 1900, 2000, 2100, 2200, 2400, 2600, 2800, 3000, Infinity];
+
+// Tableau D.1b : température de base par tranche, pour chaque valeur au niveau de la mer.
+// Une colonne plus courte que TRANCHES veut dire que la table ne donne rien au-delà.
+const D1B = {
+  "-2":  [-2, -3, -4, -4, -5, -6, -6],
+  "-4":  [-4, -5, -6, -6, -7, -7, -8, -8],
+  "-5":  [-5, -6, -7, -7, -8, -8, -9, -9, -10, -10, -11, -11, -12, -12, -13, -13, -14, -14, -15, -15, -16, -17, -18, -19, -20],
+  "-6":  [-6, -7, -8, -9, -10, -11, -12, -13, -14],
+  "-7":  [-7, -8, -9],
+  "-8":  [-8, -9, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19],
+  "-9":  [-9, -10, -11, -12, -13, -14, -15, -16, -17, -18, -19],
+  "-10": [-10, -11, -12, -13, -14, -15, -16, -17, -18, -19, -20, -21, -22, -23, -24, -25, -26, -27, -28, -29, -30, -30, -30, -30, -30],
+  "-12": [-12, -13, -14, -15, -16, -17, -18, -19, -20, -21, -22, -23, -24],
+  "-15": [-15, -15, -16, -17, -18, -19, -20, -21, -22, -23, -24, -25, -25]
+};
+
+// Ligne "distance de la côte < 25 km" du tableau D.1b (remplace la tranche 0 à 200 m)
+const LITTORAL = { "-2": -2, "-4": -2, "-5": -4, "-7": -5, "-9": -7 };
+
+// ---------- Calcul hiver ----------
+
+function trancheIndex(alt) {
+  const z = Math.max(0, Math.round(alt));
+  return TRANCHES.findIndex(b => z <= b);
+}
+
+function trancheLabel(i) {
+  if (i === 0) return "0 à 200 m";
+  if (TRANCHES[i] === Infinity) return "au-dessus de 3000 m";
+  return `${TRANCHES[i - 1] + 1} à ${TRANCHES[i]} m`;
+}
+
+function baseHiver(dep, alt, littoral) {
+  const col = D1B[dep.tb];
+  const i = trancheIndex(alt);
+  const r = { mer: dep.tb, tranche: trancheLabel(i), extrapole: false, littoral: null };
+  if (i < col.length) {
+    r.valeur = col[i];
+  } else {
+    // Au-delà de la dernière tranche renseignée : extrapolation sur le gradient moyen de la colonne
+    const last = col.length - 1, haut = TRANCHES[last];
+    const grad = (col[last] - col[0]) / (haut - 200);
+    r.valeur = Math.floor(col[last] + grad * (alt - haut));
+    r.extrapole = true;
+    r.derniere = trancheLabel(last);
+  }
+  if (littoral) {
+    if (LITTORAL[dep.tb] == null) r.littoral = "absent";
+    else if (i > 0) r.littoral = "altitude";
+    else { r.littoral = "applique"; r.sansLittoral = r.valeur; r.valeur = LITTORAL[dep.tb]; }
+  }
+  return r;
+}
+
+// ---------- Services en ligne ----------
+
+async function getJSON(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
+}
+
+async function geocode(q, type) {
+  const p = new URLSearchParams({ q, limit: 7, autocomplete: 1 });
+  if (type) p.set("type", type);
+  for (const base of ["https://data.geopf.fr/geocodage/search", "https://api-adresse.data.gouv.fr/search/"]) {
+    try { return (await getJSON(`${base}?${p}`)).features || []; } catch (e) { /* service suivant */ }
+  }
+  throw new Error("service de géocodage indisponible");
+}
+
+async function communeAt(lat, lon) {
+  try {
+    const l = await getJSON(`https://geo.api.gouv.fr/communes?lat=${lat}&lon=${lon}&fields=nom,code,codeDepartement`);
+    return l[0] || null;
+  } catch (e) { return null; }
+}
+
+async function prefecture(dep) {
+  try {
+    const p = new URLSearchParams({ nom: dep.pref, codeDepartement: dep.code, fields: "nom,centre", boost: "population", limit: 1 });
+    const c = (await getJSON(`https://geo.api.gouv.fr/communes?${p}`))[0];
+    return c ? { lat: c.centre.coordinates[1], lon: c.centre.coordinates[0] } : null;
+  } catch (e) { return null; }
+}
+
+async function altitude(lat, lon) {
+  try {
+    const j = await getJSON(`https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${lon}&lat=${lat}&resource=ign_rge_alti_wld&zonly=true`);
+    let z = j.elevations && j.elevations[0];
+    if (z && typeof z === "object") z = z.z;
+    if (typeof z === "number" && z > -500) return { z, src: "IGN RGE ALTI" };
+  } catch (e) { /* repli */ }
+  try {
+    const j = await getJSON(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`);
+    if (j.elevation && typeof j.elevation[0] === "number") return { z: j.elevation[0], src: "Copernicus DEM 90 m" };
+  } catch (e) { /* rien */ }
+  return null;
+}
+
+// ---------- Calcul été (climat local) ----------
+
+// Température humide (Stull, 2011), T en °C, HR en %
+function tHumide(t, hr) {
+  return t * Math.atan(0.151977 * Math.sqrt(hr + 8.313659)) + Math.atan(t + hr) - Math.atan(hr - 1.676331)
+    + 0.00391838 * Math.pow(hr, 1.5) * Math.atan(0.023101 * hr) - 4.686035;
+}
+
+const climCache = new Map();
+
+function climat(lat, lon, alt, ans) {
+  const fin = new Date().getFullYear() - 1, debut = fin - ans + 1;
+  const key = [lat.toFixed(3), lon.toFixed(3), alt == null ? "dem" : Math.round(alt), ans].join("|");
+  if (!climCache.has(key)) {
+    const p = new URLSearchParams({
+      latitude: lat.toFixed(4), longitude: lon.toFixed(4), start_date: `${debut}-01-01`, end_date: `${fin}-12-31`,
+      hourly: "temperature_2m,relative_humidity_2m", timeformat: "unixtime"
+    });
+    if (alt != null) p.set("elevation", Math.round(alt));
+    const pr = fetch(`https://archive-api.open-meteo.com/v1/archive?${p}`)
+      .then(async r => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.error) throw new Error(j.reason || `HTTP ${r.status}`);
+        return { ...analyse(j), debut, fin };
+      });
+    pr.catch(() => climCache.delete(key));
+    climCache.set(key, pr);
+  }
+  return climCache.get(key);
+}
+
+function analyse(j) {
+  const T = j.hourly.temperature_2m, H = j.hourly.relative_humidity_2m, time = j.hourly.time;
+  const vals = [], jours = new Map();
+  let iMax = -1, iMin = -1;
+  for (let i = 0; i < T.length; i++) {
+    const t = T[i];
+    if (t == null) continue;
+    vals.push(t);
+    if (iMax < 0 || t > T[iMax]) iMax = i;
+    if (iMin < 0 || t < T[iMin]) iMin = i;
+    const d = Math.floor(time[i] / 86400), m = jours.get(d);
+    if (m) { if (t < m[0]) m[0] = t; if (t > m[1]) m[1] = t; } else jours.set(d, [t, t]);
+  }
+  if (vals.length < 8760) throw new Error("série climatique incomplète");
+  const s = Float64Array.from(vals).sort(), n = s.length, ans = n / 8766;
+  const depassee = p => s[Math.min(n - 1, Math.floor(n * (1 - p / 100)))];
+  const coincident = db => {
+    for (const ecart of [0.5, 1, 2]) {
+      let sw = 0, sh = 0, k = 0;
+      for (let i = 0; i < T.length; i++) {
+        if (T[i] == null || H[i] == null || Math.abs(T[i] - db) > ecart) continue;
+        sw += tHumide(T[i], H[i]); sh += H[i]; k++;
+      }
+      if (k >= 10) return { th: sw / k, hr: sh / k };
+    }
+    return { th: null, hr: null };
+  };
+  const niveaux = [0.4, 1, 2].map(p => { const ts = depassee(p); return { p, ts, ...coincident(ts) }; });
+  let se = 0, ke = 0;
+  for (const [mn, mx] of jours.values()) if (mx >= niveaux[1].ts) { se += mx - mn; ke++; }
+  let h30 = 0;
+  for (const t of vals) if (t > 30) h30++;
+  return {
+    niveaux, tmax: T[iMax], dmax: time[iMax], tmin: T[iMin], dmin: time[iMin],
+    hiver996: s[Math.floor(n * 0.004)], ecartDiurne: ke ? se / ke : null, h30: h30 / ans,
+    altCalc: j.elevation
+  };
+}
+
+// ---------- Interface ----------
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const num = (v, d = 1) => v == null || !isFinite(v) ? "-" : v.toFixed(d).replace(".", ",");
+const date = ts => new Date(ts * 1000).toLocaleDateString("fr-FR");
+const pctLabel = p => String(p).replace(".", ",") + " %";
+
+const state = { dep: null, lat: null, lon: null, label: "", point: "", clim: null };
+let locSeq = 0, altManuelle = false;
+
+// Carte
+let map = null, marker = null;
+function initMap() {
+  if (!window.L) { $("#map").hidden = true; $("#map-hint").hidden = true; return; }
+  map = L.map("map").setView([46.6, 2.4], 5);
+  L.tileLayer("https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    { maxZoom: 19, attribution: "&copy; IGN Géoplateforme" }).addTo(map);
+  map.on("click", e => locateFromMap(e.latlng.lat, e.latlng.lng));
+  window.addEventListener("load", () => map.invalidateSize());
+}
+function showOnMap(lat, lon, zoom) {
+  if (!map || lat == null) return;
+  if (!marker) marker = L.circleMarker([lat, lon], { radius: 8, color: "#fff", weight: 2, fillColor: "#c2410c", fillOpacity: 1 }).addTo(map);
+  else marker.setLatLng([lat, lon]);
+  map.setView([lat, lon], zoom ?? map.getZoom());
+}
+
+// Onglets
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== b.dataset.mode);
+  if (map) setTimeout(() => map.invalidateSize(), 0);
+}));
+
+// Listes région / département
+function fillDeps(reg, selected) {
+  const sel = $("#sel-dep");
+  const list = DEPARTEMENTS.filter(d => !reg || d[4] === reg);
+  sel.innerHTML = `<option value="">Choisir...</option>` + list.map(([c, n]) => `<option value="${c}">${c} ${esc(n)}</option>`).join("");
+  sel.value = selected && list.some(d => d[0] === selected) ? selected : "";
+}
+$("#sel-region").innerHTML = `<option value="">Toutes les régions</option>` +
+  REGIONS.map(([c, n]) => `<option value="${c}">${esc(n)}</option>`).join("");
+fillDeps("");
+$("#sel-region").addEventListener("change", e => fillDeps(e.target.value, state.dep));
+$("#sel-dep").addEventListener("change", e => { if (e.target.value) locateFromDep(e.target.value); });
+
+function syncSelects() {
+  const d = DEPS[state.dep];
+  $("#sel-region").value = d ? d.reg : "";
+  fillDeps(d ? d.reg : "", state.dep);
+}
+
+// Autocomplétion adresse / commune
+function autocomplete(input, list, type) {
+  let timer, seq = 0, items = [], active = -1;
+  const close = () => { list.hidden = true; active = -1; };
+  const render = () => {
+    if (!items.length) { list.innerHTML = `<li class="msg">Aucun résultat</li>`; list.hidden = false; return; }
+    list.innerHTML = items.map((f, i) =>
+      `<li role="option" data-i="${i}" aria-selected="${i === active}">${esc(f.properties.label)}<small>${esc(f.properties.context)}</small></li>`).join("");
+    list.hidden = false;
+  };
+  const pick = i => {
+    const f = items[i]; if (!f) return;
+    input.value = f.properties.label; close();
+    const p = f.properties, [lon, lat] = f.geometry.coordinates;
+    const dep = (p.context || "").split(",")[0].trim() || (p.citycode || "").slice(0, (p.citycode || "").startsWith("97") ? 3 : 2);
+    const commune = type === "municipality";
+    locate({ lat, lon, dep, label: p.label, point: commune ? "point de référence de la commune" : "adresse",
+      fetchAlt: true, altWhere: commune ? "au point de référence de la commune (à ajuster au site)" : "à l'adresse", zoom: commune ? 12 : 16 });
+  };
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    const q = input.value.trim();
+    if (q.length < 3) { close(); return; }
+    timer = setTimeout(async () => {
+      const my = ++seq;
+      try { const f = await geocode(q, type); if (my !== seq) return; items = f; active = -1; render(); }
+      catch (e) { if (my !== seq) return; items = []; list.innerHTML = `<li class="msg">Erreur : ${esc(e.message)}</li>`; list.hidden = false; }
+    }, 250);
+  });
+  input.addEventListener("keydown", e => {
+    if (list.hidden || !items.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      active = (active + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length; render();
+    } else if (e.key === "Enter") { e.preventDefault(); pick(active < 0 ? 0 : active); }
+    else if (e.key === "Escape") close();
+  });
+  list.addEventListener("mousedown", e => { const li = e.target.closest("li[data-i]"); if (li) { e.preventDefault(); pick(+li.dataset.i); } });
+  input.addEventListener("blur", () => setTimeout(close, 120));
+}
+autocomplete($("#q-adresse"), $("#s-adresse"), null);
+autocomplete($("#q-commune"), $("#s-commune"), "municipality");
+
+// Localisation du site
+async function locate(o) {
+  const tok = ++locSeq;
+  Object.assign(state, { lat: o.lat ?? null, lon: o.lon ?? null, dep: o.dep || null, label: o.label || "", point: o.point || "", clim: null });
+  $("#s-body").hidden = true; $("#s-val").textContent = "-"; $("#s-sub").textContent = "";
+  syncSelects();
+  showOnMap(state.lat, state.lon, o.zoom);
+  renderDep();
+  updateWinter();
+  if (o.fetchAlt && state.lat != null) {
+    $("#alt-hint").textContent = "Recherche de l'altitude...";
+    const a = await altitude(state.lat, state.lon);
+    if (tok !== locSeq) return;
+    if (a) {
+      $("#alt").value = Math.round(a.z);
+      altManuelle = false;
+      $("#alt-hint").textContent = `Altitude ${o.altWhere} : ${Math.round(a.z)} m (${a.src}). Modifiable.`;
+    } else {
+      $("#alt-hint").textContent = "Altitude introuvable : la saisir.";
+    }
+    updateWinter();
+  }
+  scheduleSummer(0);
+}
+
+async function locateFromDep(code) {
+  const d = DEPS[code];
+  // Une altitude lue au point d'un site précédent ne vaut pas pour ce département
+  if (!altManuelle) $("#alt").value = "";
+  $("#alt-hint").textContent = $("#alt").value === "" ? "Saisir l'altitude du site." : "Altitude saisie conservée.";
+  const tok = locSeq + 1;
+  await locate({ dep: code, label: `${d.nom} (${code})`, point: "", zoom: 8 });
+  const c = await prefecture(d);
+  if (tok !== locSeq || !c) return;
+  state.lat = c.lat; state.lon = c.lon; state.point = `préfecture (${d.pref})`;
+  showOnMap(c.lat, c.lon, 8);
+  scheduleSummer(0);
+}
+
+async function locateFromMap(lat, lon) {
+  const tok = locSeq + 1;
+  const pos = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  const cp = communeAt(lat, lon);
+  await locate({ lat, lon, dep: null, label: `Point ${pos}`, point: "point cliqué sur la carte", fetchAlt: true, altWhere: "au point cliqué" });
+  const c = await cp;
+  if (tok !== locSeq) return;
+  state.dep = c ? c.codeDepartement : null;
+  state.label = c ? c.nom : "Point hors commune française";
+  syncSelects(); renderDep(); updateWinter();
+}
+
+function renderDep() {
+  const d = DEPS[state.dep];
+  $("#out-dep").textContent = d ? `${d.code} ${d.nom}` : state.dep ? `${state.dep} (inconnu)` : "-";
+  const coastOk = d && d.tb != null && LITTORAL[d.tb] != null;
+  $("#coast").disabled = !coastOk;
+  $("#coast-wrap").classList.toggle("off", !coastOk);
+  $("#coast-wrap").title = coastOk ? "" : "La norme ne donne pas de valeur littorale pour cette zone.";
+}
+
+// Résultats hiver
+function updateWinter() {
+  const d = DEPS[state.dep], alt = parseFloat($("#alt").value), notes = [];
+  const set = (val, sub, rows) => {
+    $("#w-val").textContent = val; $("#w-sub").textContent = sub;
+    $("#w-det").innerHTML = (rows || []).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  };
+  if (!state.dep) set("-", "Choisir un site pour obtenir la valeur.");
+  else if (!d) set("-", "Département non reconnu.");
+  else if (d.tb == null) set("-", "Non applicable : la NF P52-612/CN ne couvre que la France métropolitaine.");
+  else if (!isFinite(alt)) set("-", "Saisir l'altitude du site.", [["Département", `${d.code} ${esc(d.nom)}`], ["θe,b au niveau de la mer (D.1a)", `${d.tb} °C`]]);
+  else {
+    const r = baseHiver(d, alt, $("#coast").checked);
+    const rows = [
+      ["Département", `${d.code} ${esc(d.nom)}`],
+      ["θe,b au niveau de la mer (D.1a)", `${r.mer} °C`],
+      ["Tranche d'altitude (D.1b)", `${r.tranche} (site à ${Math.round(alt)} m)`],
+      ["Correction d'altitude", `${(r.sansLittoral ?? r.valeur) - r.mer} K`]
+    ];
+    if (r.littoral === "applique") rows.push(["Ligne côte < 25 km (D.1b)", `${r.valeur} °C au lieu de ${r.sansLittoral} °C`]);
+    set(`${r.valeur} °C`, "Température extérieure de base hiver θe,b", rows);
+    if (r.extrapole) notes.push(["warn", `Altitude au-delà de la dernière tranche renseignée par la norme pour cette zone (${r.derniere}) : valeur extrapolée sur le gradient de la colonne, à confirmer.`]);
+    if (r.littoral === "altitude") notes.push(["warn", "La ligne côte < 25 km ne s'applique qu'à la tranche 0 à 200 m : non retenue."]);
+    if (r.valeur < -25) notes.push(["info", "Sur un versant ensoleillé, la norme ne retient pas de valeur inférieure à -25 °C."]);
+  }
+  if (d && ["92", "93", "94"].includes(d.code)) notes.push(["info", "Carte de la norme : Paris et petite couronne (75, 92, 93, 94) à -5 °C. Certaines reproductions du tableau D.1a indiquent -7 °C pour 92, 93 et 94."]);
+  const c = state.clim;
+  if (c && d && d.tb != null) notes.push(["info", `Contrôle sur le climat local ${c.debut}-${c.fin} : 99,6 % des heures au-dessus de ${num(c.hiver996)} °C, minimum horaire ${num(c.tmin)} °C le ${date(c.dmin)}.`]);
+  $("#w-notes").innerHTML = notes.map(([k, t]) => `<p class="note ${k}">${t}</p>`).join("");
+}
+
+// Résultats été
+let summerTimer = null, summerSeq = 0;
+function scheduleSummer(delay = 700) { clearTimeout(summerTimer); summerTimer = setTimeout(runSummer, delay); }
+
+function summerStatus(html) { $("#s-status").innerHTML = html; }
+
+async function runSummer() {
+  const tok = ++summerSeq;
+  if (state.lat == null) {
+    state.clim = null; $("#s-body").hidden = true; $("#s-val").textContent = "-";
+    $("#s-sub").textContent = state.dep ? "Position du site en cours de recherche..." : "Choisir un site pour lancer le calcul (connexion internet nécessaire).";
+    summerStatus(""); updateWinter(); return;
+  }
+  const altVal = parseFloat($("#alt").value), alt = isFinite(altVal) ? altVal : null, ans = +$("#period").value;
+  summerStatus(`<span class="spin"></span> Analyse de ${ans} ans de données horaires au point du site...`);
+  try {
+    const c = await climat(state.lat, state.lon, alt, ans);
+    if (tok !== summerSeq) return;
+    state.clim = c; summerStatus(""); renderSummer(); updateWinter();
+  } catch (e) {
+    if (tok !== summerSeq) return;
+    state.clim = null; $("#s-body").hidden = true; $("#s-val").textContent = "-"; $("#s-sub").textContent = "";
+    summerStatus(`<p class="note err" style="margin:0">Données climatiques indisponibles (${esc(e.message)}). Vérifier la connexion internet.</p>`);
+    updateWinter();
+  }
+}
+
+function renderSummer() {
+  const c = state.clim; if (!c) return;
+  const p = +$("#pct").value, L = c.niveaux.find(x => x.p === p);
+  $("#s-val").textContent = `${num(L.ts)} °C`;
+  $("#s-sub").textContent = L.th != null
+    ? `Température sèche dépassée ${pctLabel(p)} des heures, avec ${num(L.th)} °C humide coïncidente`
+    : `Température sèche dépassée ${pctLabel(p)} des heures`;
+  $("#s-tab").innerHTML = c.niveaux.map(x => `<tr class="${x.p === p ? "sel" : ""}"><td>${pctLabel(x.p)}</td><td>${num(x.ts)} °C</td><td>${num(x.th)} °C</td><td>${num(x.hr, 0)} %</td></tr>`).join("");
+  const pos = `${state.lat.toFixed(4)}, ${state.lon.toFixed(4)}`;
+  $("#s-det").innerHTML = [
+    ["Point climatique", `${esc(state.label)}<br><small>${esc(state.point ? state.point + ", " : "")}${pos}</small>`],
+    ["Altitude de calcul", c.altCalc != null ? `${Math.round(c.altCalc)} m` : "-"],
+    ["Période", `${c.debut} à ${c.fin} (ERA5, ERA5-Land)`],
+    ["Maximum horaire de la période", `${num(c.tmax)} °C le ${date(c.dmax)}`],
+    ["Écart diurne moyen des jours chauds", c.ecartDiurne != null ? `${num(c.ecartDiurne)} K` : "-"],
+    ["Heures au-dessus de 30 °C", `${num(c.h30, 0)} h/an`]
+  ].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+  $("#s-body").hidden = false;
+}
+
+// Événements
+$("#alt").addEventListener("input", () => { altManuelle = true; $("#alt-hint").textContent = "Altitude saisie manuellement."; updateWinter(); scheduleSummer(); });
+$("#coast").addEventListener("change", updateWinter);
+$("#pct").addEventListener("change", renderSummer);
+$("#period").addEventListener("change", () => scheduleSummer(0));
+
+// Copie du résultat
+$("#copy").addEventListener("click", async () => {
+  const d = DEPS[state.dep], alt = parseFloat($("#alt").value), lines = [];
+  lines.push(`Site : ${state.label || "-"}${d ? ` (${d.code} ${d.nom})` : ""}${isFinite(alt) ? `, altitude ${Math.round(alt)} m` : ""}`);
+  if (d && d.tb != null && isFinite(alt)) {
+    const r = baseHiver(d, alt, $("#coast").checked);
+    lines.push(`Hiver : θe,b = ${r.valeur} °C (NF P52-612/CN, D.1a ${r.mer} °C, tranche ${r.tranche}${r.littoral === "applique" ? ", côte < 25 km" : ""}${r.extrapole ? ", valeur extrapolée" : ""})`);
+  }
+  const c = state.clim;
+  if (c) {
+    const p = +$("#pct").value, L = c.niveaux.find(x => x.p === p);
+    lines.push(`Été : ${num(L.ts)} °C sec / ${num(L.th)} °C humide (dépassée ${pctLabel(p)} des heures, ERA5 ${c.debut}-${c.fin})`);
+  }
+  const txt = lines.join("\n");
+  try { await navigator.clipboard.writeText(txt); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = txt; document.body.append(ta); ta.select();
+    document.execCommand("copy"); ta.remove();
+  }
+  const b = $("#copy"), t = b.textContent; b.textContent = "Copié"; setTimeout(() => b.textContent = t, 1500);
+});
+
+initMap();
+</script>
+</body>
+</html>
