@@ -2,6 +2,11 @@
 
 <!-- Dernière entrée en haut. Une entrée par session de travail ou par décision. Date au format AAAA-MM-JJ. -->
 
+## 2026-11-17, thème clair par défaut
+- Demande de Marius pour toutes les calculettes B27 : la page s'ouvre en thème clair, le réglage sombre du système n'est plus suivi ; le bouton de bascule reste, et le choix qu'il mémorise dans le navigateur est gardé.
+- Script du <head> (thème appliqué avant le premier rendu) et initTheme modifiés : plus de lecture de prefers-color-scheme ni d'écoute de son changement.
+- Vérifié dans le navigateur avec un système réglé en sombre : page en clair, bascule et mémorisation du choix, console vide.
+
 ## 2026-10-22
 - Création du projet : une page HTML autonome qui donne la température extérieure de base hiver et été d'un site, à partir d'une adresse, d'une commune, d'un département ou d'un clic sur la carte.
 - Hiver : tableaux D.1a (valeur départementale au niveau de la mer) et D.1b (valeur par tranche d'altitude, ligne "côte à moins de 25 km") de la NF P52-612/CN, relevés dans la documentation DeperTherm 2015 de ThermExcel, faute d'accès au texte AFNOR. La table par zones A à I diffusée par plusieurs sites grand public est écartée : elle n'a pas de colonne -6 °C alors que quatre départements y sont (07, 26, 46, 84).

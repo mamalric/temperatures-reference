@@ -5,7 +5,7 @@ type: application                                   # application | outil | docu
 statut: actif                                       # idee | actif | pause | termine | abandonne
 pitch: Température extérieure de base hiver (NF P52-612/CN) et été d'un site, depuis son adresse ou son département.  # une phrase sur une seule ligne, 120 caractères maximum
 cree: 2026-10-22                                    # AAAA-MM-JJ
-maj: 2026-10-22                                     # AAAA-MM-JJ, mis à jour par Claude Code en fin de session
+maj: 2026-11-17                                     # AAAA-MM-JJ, mis à jour par Claude Code en fin de session
 tags: [cvc, chauffage, climatisation, reglementation]  # exemple : [cvc, reglementation]
 stack: HTML + CSS + JS vanilla, une seule page, sans build
 lancer: ouvrir index.html
