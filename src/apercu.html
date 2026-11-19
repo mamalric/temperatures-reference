@@ -1,0 +1,78 @@
+<!doctype html>
+<!--
+  Source de l'image d'aperçu du lien (apercu.jpg, 1200 x 630), à la racine du projet.
+  Rendu par Edge sans fenêtre, puis conversion en JPEG (qualité 90) :
+    msedge --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1
+           --allow-file-access-from-files --window-size=1200,630
+           --screenshot=<dossier temporaire>\apercu.png "file:///<projet>/src/apercu.html"
+  Le motif principal (la tuile) reste au centre : Teams et Outlook recadrent la vignette en carré.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse 70% 80% at 50% 45%, #18230f 0%, #0d1209 55%, #090c07 100%);
+    font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif; color: #f2f5ee;
+    position: relative;
+  }
+  svg.flux { position: absolute; inset: 0; }
+  .centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-bottom: 46px; }
+  .tuile { width: 150px; height: 150px; border-radius: 34px; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(145deg, #95c03d, #6f9426); box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 0 90px 10px rgba(149,192,61,.28), 0 18px 40px rgba(0,0,0,.45); }
+  h1 { margin: 34px 0 0; font-size: 66px; font-weight: 700; letter-spacing: -1.5px; line-height: 1.05; text-align: center; }
+  h1 .vert { background: linear-gradient(90deg, #c9e58f, #95c03d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p { margin: 14px 0 0; font-size: 29px; color: #b7c2ad; text-align: center; }
+  .pastilles { display: flex; gap: 14px; margin-top: 30px; }
+  .pastille { display: flex; align-items: center; gap: 10px; padding: 9px 20px 9px 16px; border-radius: 99px; font-size: 23px; font-weight: 600;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); }
+  .pastille svg { flex: none; }
+  .pied { position: absolute; left: 0; right: 0; bottom: 34px; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 22px; color: #9aa592; font-weight: 600; }
+  .pied img { width: 36px; height: 36px; }
+</style>
+</head>
+<body>
+<svg class="flux" id="flux" width="1200" height="630" viewBox="0 0 1200 630"></svg>
+<div class="centre" id="contenu"></div>
+<div class="pied" id="pied"></div>
+<script>
+  // Lignes de flux comme sur le portail : somme de sinus déphasés, vert clair rare
+  const svg = document.getElementById("flux");
+  let graine = 7;
+  const alea = () => (graine = (graine * 16807) % 2147483647) / 2147483647;
+  let traces = "";
+  for (let k = 0; k < 70; k++) {
+    let x = alea() * 1300 - 50, y = alea() * 630;
+    const pts = [];
+    for (let s = 0; s < 60; s++) {
+      const a = Math.sin(x * 0.004 + y * 0.002) * 0.9 + Math.sin(y * 0.006 - x * 0.001 + 1.7) * 0.6;
+      x += Math.cos(a) * 7; y += Math.sin(a) * 7;
+      pts.push(x.toFixed(1) + "," + y.toFixed(1));
+    }
+    const clair = k % 7 === 0;
+    const op = clair ? 0.30 : 0.07 + alea() * 0.09;
+    traces += `<polyline points="${pts.join(" ")}" fill="none" stroke="${clair ? "#95c03d" : "#7da32f"}" stroke-opacity="${op.toFixed(2)}" stroke-width="${clair ? 2 : 1.4}" stroke-linecap="round"/>`;
+  }
+  svg.innerHTML = traces;
+
+  // Mêmes tracés Lucide que l'outil (index.html, TRACES_ICONES)
+  const ICO = {
+    thermometre: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
+    flocon: '<path d="m10 20-1.25-2.5L6 18"/><path d="M10 4 8.75 6.5 6 6"/><path d="m14 20 1.25-2.5L18 18"/><path d="m14 4 1.25 2.5L18 6"/><path d="m17 21-3-6h-4"/><path d="m17 3-3 6 1.5 3"/><path d="M2 12h6.5L10 9"/><path d="m20 10-1.5 2 1.5 2"/><path d="M22 12h-6.5L14 15"/><path d="m4 10 1.5 2L4 14"/><path d="m7 21 3-6-1.5-3"/><path d="m7 3 3 6h4"/>',
+    soleil: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>'
+  };
+  const ico = (n, t, c, e) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="${e || 2}" stroke-linecap="round" stroke-linejoin="round">${ICO[n]}</svg>`;
+
+  document.getElementById("contenu").innerHTML = `
+    <div class="tuile">${ico("thermometre", 92, "#ffffff", 2.2)}</div>
+    <h1>Températures de <span class="vert">référence</span></h1>
+    <p>Température extérieure de base d'un site en France</p>
+    <div class="pastilles">
+      <span class="pastille">${ico("flocon", 26, "#8bc8e2")}Hiver : NF P52-612/CN</span>
+      <span class="pastille">${ico("soleil", 26, "#f0a07a")}Été : climat local</span>
+    </div>`;
+  document.getElementById("pied").innerHTML = `<img src="logo-b27.svg" alt="">Outils B27`;
+</script>
+</body>
+</html>

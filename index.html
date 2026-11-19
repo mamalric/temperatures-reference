@@ -147,7 +147,9 @@ header .actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px;justify-c
 
 /* ---- disposition deux colonnes */
 main.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
-@media (max-width: 980px){ main.cols{grid-template-columns:1fr} }
+/* minmax(0,1fr) et non 1fr : une colonne doit pouvoir rétrécir sous la largeur de son contenu
+   (listes déroulantes, tableau), sans quoi la page déborde en largeur sur un téléphone */
+@media (max-width: 980px){ main.cols{grid-template-columns:minmax(0,1fr)} }
 @media (max-width: 600px){ .wrap{padding:14px 12px 30px} header{padding:10px 12px} }
 
 /* ---- panneaux */
@@ -179,8 +181,8 @@ main.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18p
 /* ---- champs */
 .fld{display:flex;flex-direction:column;gap:5px;min-width:0}
 .fld > label,.fld > .intitule{font-size:12px;font-weight:600;color:var(--encre-2);line-height:1.35}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media (max-width: 480px){ .grid2{grid-template-columns:1fr} }
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+@media (max-width: 480px){ .grid2{grid-template-columns:minmax(0,1fr)} }
 .hint{font-size:11.5px;color:var(--discret);font-weight:400;line-height:1.45;margin:6px 0 0;min-height:1.2em}
 .fld-tete{display:flex;align-items:center;gap:6px}
 .fld-tete > label{font-size:12px;font-weight:600;color:var(--encre-2);line-height:1.35}
@@ -225,6 +227,10 @@ input[type=number]{width:120px}
 input:hover,select:hover{border-color:var(--discret)}
 input:focus,select:focus{outline:none;border-color:var(--primaire);background-color:var(--champ-actif);box-shadow:0 0 0 3px var(--anneau)}
 .readout{padding:7px 10px;border:1px solid var(--ligne-2);border-radius:var(--rayon-s);background:var(--papier-2);min-height:37px;font-weight:600}
+.fld-tete > .intitule{font-size:12px;font-weight:600;color:var(--encre-2);line-height:1.35}
+.readout.zone{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.readout.zone .badge{font-size:13px;padding:2px 11px}
+.readout.zone small{font-weight:400;color:var(--encre-2);font-size:12.5px}
 .site{margin-top:16px;padding-top:16px;border-top:1px solid var(--ligne-2);display:grid;gap:12px}
 
 /* Case à cocher redessinée, comme sur les autres outils B27 */
@@ -280,8 +286,9 @@ dl.det dd small{font-weight:400;color:var(--discret)}
 .note.info{background:var(--papier-2);border-color:var(--ligne-2);color:var(--encre-2)}
 .note.info .ico{color:var(--discret)}
 .note.err{background:var(--haute-fond);border-color:var(--haute);color:var(--haute)}
-.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
-@media (max-width: 480px){ .controls{grid-template-columns:1fr} }
+.controls{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-bottom:16px}
+@media (max-width: 480px){ .controls{grid-template-columns:minmax(0,1fr)} }
+.tableau{overflow-x:auto}
 table{border-collapse:collapse;width:100%;margin-top:14px;font-size:13px}
 th,td{padding:6px 9px;text-align:right;border-bottom:1px solid var(--ligne-2);font-variant-numeric:tabular-nums}
 th:first-child,td:first-child{text-align:left}
@@ -408,6 +415,13 @@ footer.pied div + div{margin-top:4px}
               </div>
             </div>
             <p class="hint" id="alt-hint" style="margin-top:-6px"></p>
+            <div class="fld">
+              <div class="fld-tete">
+                <span class="intitule">Zone climatique RE2020</span>
+                <button type="button" class="btn-aide" id="aide-zone" data-ico="info" data-ico-taille="11" aria-expanded="false" aria-label="Aide : zone climatique" title="D'où vient la zone, cliquer pour le détail"></button>
+              </div>
+              <div class="readout zone" id="out-zone">-</div>
+            </div>
             <label class="chkligne" id="coast-wrap"><input type="checkbox" id="coast"> <span>Site à moins de 25 km de la mer (zones en pointillés de la carte de la norme)</span></label>
           </div>
         </div>
@@ -453,10 +467,12 @@ footer.pied div + div{margin-top:4px}
           <p class="sous" id="s-sub">Choisir un site pour lancer le calcul (connexion internet nécessaire).</p>
           <div class="status" id="s-status"></div>
           <div id="s-body" hidden>
-            <table>
-              <thead><tr><th>Dépassement</th><th>T sèche</th><th>T humide coïncidente</th><th>HR coïncidente</th></tr></thead>
-              <tbody id="s-tab"></tbody>
-            </table>
+            <div class="tableau">
+              <table>
+                <thead><tr><th>Dépassement</th><th>T sèche</th><th>T humide coïncidente</th><th>HR coïncidente</th></tr></thead>
+                <tbody id="s-tab"></tbody>
+              </table>
+            </div>
             <dl class="det" id="s-det"></dl>
             <p class="note info" data-ico="info">Les réanalyses lissent un peu les pointes de température : en ville ou en fond de vallée, la valeur réelle peut être de 1 à 2 °C plus élevée.</p>
           </div>
@@ -564,6 +580,25 @@ const D1B = {
 // Ligne "distance de la côte < 25 km" du tableau D.1b (remplace la tranche 0 à 200 m)
 const LITTORAL = { "-2": -2, "-4": -2, "-5": -4, "-7": -5, "-9": -7 };
 
+// Zone climatique RE2020 de chaque département : décret n° 2021-1004 du 29 juillet 2021, annexe,
+// chapitre IV. La RE2020 ne vise que la métropole : pas de zone pour l'outre-mer.
+const ZONES_RE2020 = {
+  H1a: ["02", "14", "27", "28", "59", "60", "61", "62", "75", "76", "77", "78", "80", "91", "92", "93", "94", "95"],
+  H1b: ["08", "10", "45", "51", "52", "54", "55", "57", "58", "67", "68", "70", "88", "89", "90"],
+  H1c: ["01", "03", "05", "15", "19", "21", "23", "25", "38", "39", "42", "43", "63", "69", "71", "73", "74", "87"],
+  H2a: ["22", "29", "35", "50", "56"],
+  H2b: ["16", "17", "18", "36", "37", "41", "44", "49", "53", "72", "79", "85", "86"],
+  H2c: ["09", "12", "24", "31", "32", "33", "40", "46", "47", "64", "65", "81", "82"],
+  H2d: ["04", "07", "26", "48", "84"],
+  H3:  ["06", "11", "13", "2A", "2B", "30", "34", "66", "83"]
+};
+const ZONE_DE = Object.fromEntries(Object.entries(ZONES_RE2020).flatMap(([z, deps]) => deps.map(d => [d, z])));
+
+// Classes d'altitude des coefficients de modulation géographique (même décret, chapitre III)
+function classeAltitude(alt) {
+  return alt < 400 ? "moins de 400 m" : alt <= 800 ? "400 à 800 m" : "plus de 800 m";
+}
+
 // ---------- Calcul hiver ----------
 
 function trancheIndex(alt) {
@@ -601,10 +636,15 @@ function baseHiver(dep, alt, littoral) {
 
 // ---------- Services en ligne ----------
 
-async function getJSON(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
+async function getJSON(url, delai) {
+  // delai (ms) : abandon de la requête au-delà, pour passer au service de repli
+  const ctrl = delai ? new AbortController() : null;
+  const minuteur = delai ? setTimeout(() => ctrl.abort(), delai) : null;
+  try {
+    const r = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } finally { clearTimeout(minuteur); }
 }
 
 async function geocode(q, type) {
@@ -633,7 +673,8 @@ async function prefecture(dep) {
 
 async function altitude(lat, lon) {
   try {
-    const j = await getJSON(`https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${lon}&lat=${lat}&resource=ign_rge_alti_wld&zonly=true`);
+    // Le service IGN met parfois une dizaine de secondes à répondre : au-delà de 5 s, repli
+    const j = await getJSON(`https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=${lon}&lat=${lat}&resource=ign_rge_alti_wld&zonly=true`, 5000);
     let z = j.elevations && j.elevations[0];
     if (z && typeof z === "object") z = z.z;
     if (typeof z === "number" && z > -500) return { z, src: "IGN RGE ALTI" };
@@ -752,7 +793,7 @@ function analyse(raw, alt) {
 // Tracés Lucide (licence ISC), dessinés en trait sur une grille de 24
 const TRACES_ICONES = {
   thermometre: '<path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/>',
-  flocon: '<line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/><path d="m20 16-4-4 4-4"/><path d="m4 8 4 4-4 4"/><path d="m16 4-4 4-4-4"/><path d="m8 20 4-4 4 4"/>',
+  flocon: '<path d="m10 20-1.25-2.5L6 18"/><path d="M10 4 8.75 6.5 6 6"/><path d="m14 20 1.25-2.5L18 18"/><path d="m14 4 1.25 2.5L18 6"/><path d="m17 21-3-6h-4"/><path d="m17 3-3 6 1.5 3"/><path d="M2 12h6.5L10 9"/><path d="m20 10-1.5 2 1.5 2"/><path d="M22 12h-6.5L14 15"/><path d="m4 10 1.5 2L4 14"/><path d="m7 21 3-6-1.5-3"/><path d="m7 3 3 6h4"/>',
   soleil: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
   lune: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   repere: '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/>',
@@ -802,6 +843,8 @@ function initTheme() {
 
 // Journal des versions : deux ou trois phrases par version, le détail va dans JOURNAL.md
 const CHANGELOG = [
+  { v: "v4", date: "2026-11-19", titre: "La zone climatique",
+    texte: "Le site affiche sa zone climatique RE2020 (H1a à H3), lue dans l'annexe du décret n° 2021-1004, et sa classe d'altitude (moins de 400 m, 400 à 800 m, plus de 800 m), avec un bouton (i) qui en donne la source. Elle figure aussi dans le résultat copié." },
   { v: "v3", date: "2026-10-22", titre: "Le niveau de dépassement expliqué",
     texte: "Un bouton (i) à côté du niveau de dépassement dit ce qu'il signifie : le nombre d'heures par an au-dessus de la valeur, les trois valeurs du site, et lequel choisir selon l'usage du bâtiment." },
   { v: "v2", date: "2026-10-22", titre: "Aux couleurs des outils B27",
@@ -811,6 +854,7 @@ const CHANGELOG = [
 ];
 
 const SOURCES = [
+  ["Zone climatique", '<a href="https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000043877196" target="_blank" rel="noopener">Décret n° 2021-1004 du 29 juillet 2021</a> (RE2020), annexe : zones par département au chapitre IV, classes d\'altitude des coefficients de modulation au chapitre III'],
   ["Hiver", 'NF EN 12831 et complément national <a href="https://www.boutique.afnor.org/en-gb/standard/nf-p52612-cn/heating-systems-in-buildings-method-for-calculation-of-the-design-heat-load/fa165533/36563" target="_blank" rel="noopener">NF P52-612/CN</a> (décembre 2010), tableaux D.1a et D.1b'],
   ["Relevé des tableaux", '<a href="https://www.thermexcel.com/french/divers/ThermExcel%20-%20Programme%20DeperTherm%202015.pdf" target="_blank" rel="noopener">ThermExcel, DeperTherm 2015</a>, et carte de la norme pour 75, 92, 93 et 94'],
   ["Niveaux de dépassement été", "ASHRAE Handbook Fundamentals, chapitre Climatic Design Information : 0,4 %, 1 % et 2 % des heures de l'année"],
@@ -830,7 +874,8 @@ function ouvrirApropos() {
       ["Version", `${act.v} du ${dateFr(act.date)}`],
       ["Départements avec valeur d'hiver", `${metro}, en métropole`],
       ["Départements d'outre-mer", `${om}, base été seule`],
-      ["Tranches d'altitude du tableau D.1b", `${TRANCHES.length}, de 0 à plus de 3000 m`]
+      ["Tranches d'altitude du tableau D.1b", `${TRANCHES.length}, de 0 à plus de 3000 m`],
+      ["Zones climatiques RE2020", `${Object.keys(ZONES_RE2020).length}, pour ${Object.keys(ZONE_DE).length} départements`]
     ])),
     groupe("livre", "Méthode", `<div class="methodo">
       <p><b>Hiver.</b> Température extérieure de base θe,b de la NF EN 12831, complément national NF P52-612/CN : valeur départementale ramenée au niveau de la mer (tableau D.1a), puis valeur de la tranche d'altitude du site (tableau D.1b). Une ligne particulière du tableau D.1b donne la valeur des sites à moins de 25 km de la côte. Au-delà de la dernière tranche renseignée pour une zone, la valeur est extrapolée sur le gradient de la colonne et signalée. Pour un département à cheval sur deux zones, la carte de la norme fait foi. Sur un versant ensoleillé, on ne retient pas de valeur inférieure à -25 °C.</p>
@@ -925,6 +970,14 @@ function aideNiveau() {
     <table><thead><tr><th>Niveau</th><th>Heures au-dessus</th>${c ? "<th>Ce site</th>" : ""}</tr></thead><tbody>${lignes}</tbody></table>
     <p><b>0,4 %</b> : quand un dépassement pose problème (salle serveur, local médical, laboratoire).<br><b>1 %</b> : climatisation de confort courante en tertiaire (bureaux, commerces).<br><b>2 %</b> : quelques heures chaudes acceptables (logement, simple rafraîchissement).</p>
     <p>${c ? `Pour comparaison, le maximum horaire de la période est ici de ${num(c.tmax)} °C, le ${date(c.dmax)}. ` : ""}Même principe que la base hiver, qui n'est pas non plus un record de froid. Seuils de l'ASHRAE.</p>`;
+}
+
+// Aide de la zone climatique
+function aideZone() {
+  const z = ZONE_DE[state.dep];
+  return `<p>Zone climatique de la RE2020, fixée par département dans l'annexe du décret n° 2021-1004 du 29 juillet 2021 (chapitre IV). Elle ne dépend que du département${z ? ` : ${esc(DEPS[state.dep].nom)} est en ${z}` : ""}.</p>
+    <p>L'altitude du site se range en trois classes, moins de 400 m, 400 à 800 m et plus de 800 m. Avec la zone, elle règle les coefficients de modulation géographique des exigences (chapitre III du même texte) : Mbgéo pour le Bbio, Mcgéo pour les consommations d'énergie, Migéo pour l'impact carbone de la construction.</p>
+    <p>Le décret ne vise que la France métropolitaine : pas de zone pour l'outre-mer.</p>`;
 }
 
 // ---------- Interface ----------
@@ -1087,8 +1140,17 @@ function renderDep() {
   $("#coast-wrap").title = coastOk ? "" : "La norme ne donne pas de valeur littorale pour cette zone.";
 }
 
+// Zone climatique RE2020 et classe d'altitude
+function renderZone() {
+  const d = DEPS[state.dep], z = ZONE_DE[state.dep], alt = parseFloat($("#alt").value);
+  $("#out-zone").innerHTML = !d ? "-"
+    : !z ? `<small>Non applicable : la RE2020 ne vise que la France métropolitaine.</small>`
+    : `<span class="badge ok">${z}</span><small>${isFinite(alt) ? `altitude ${classeAltitude(alt)}` : "classe d'altitude : saisir l'altitude"}</small>`;
+}
+
 // Résultats hiver
 function updateWinter() {
+  renderZone();
   const d = DEPS[state.dep], alt = parseFloat($("#alt").value), notes = [];
   const set = (val, sub, rows) => {
     $("#w-val").textContent = val; $("#w-sub").textContent = sub;
@@ -1185,6 +1247,7 @@ $("#dlgApropos").addEventListener("click", e => { if (e.target === e.currentTarg
 $("#copy").addEventListener("click", async () => {
   const d = DEPS[state.dep], alt = parseFloat($("#alt").value), lines = [];
   lines.push(`Site : ${state.label || "-"}${d ? ` (${d.code} ${d.nom})` : ""}${isFinite(alt) ? `, altitude ${Math.round(alt)} m` : ""}`);
+  if (ZONE_DE[state.dep]) lines.push(`Zone climatique RE2020 : ${ZONE_DE[state.dep]}${isFinite(alt) ? `, altitude ${classeAltitude(alt)}` : ""} (décret n° 2021-1004, annexe, chapitre IV)`);
   if (d && d.tb != null && isFinite(alt)) {
     const r = baseHiver(d, alt, $("#coast").checked);
     lines.push(`Hiver : θe,b = ${r.valeur} °C (NF P52-612/CN, D.1a ${r.mer} °C, tranche ${r.tranche}${r.littoral === "applique" ? ", côte < 25 km" : ""}${r.extrapole ? ", valeur extrapolée" : ""})`);
@@ -1206,6 +1269,7 @@ $("#copy").addEventListener("click", async () => {
 });
 
 brancherAide($("#aide-pct"), "Niveau de dépassement", aideNiveau);
+brancherAide($("#aide-zone"), "Zone climatique RE2020", aideZone);
 
 poserIcones();
 initTheme();

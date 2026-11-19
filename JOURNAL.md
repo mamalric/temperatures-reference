@@ -2,6 +2,15 @@
 
 <!-- Dernière entrée en haut. Une entrée par session de travail ou par décision. Date au format AAAA-MM-JJ. -->
 
+## 2026-11-19, la zone climatique
+- Version 4, demande de Marius : le site affiche sa zone climatique RE2020 (H1a à H3) et sa classe d'altitude. Zones relevées dans la bibliothèque de textes, décret n° 2021-1004 du 29 juillet 2021, version initiale, annexe, chapitre IV (tableau des 96 départements métropolitains) ; le décret n° 2026-16 (tertiaire) renvoie à ce chapitre sans le modifier. Contrôle dans le navigateur : les 96 départements métropolitains ont chacun une zone, aucun en trop.
+- Classes d'altitude du chapitre III du même décret, celles des coefficients de modulation géographique Mbgéo, Mcgéo et Migéo : le texte écrit "< 400m", "400m-800m" et ">800m" sans trancher les bornes exactes ; l'outil range 400 et 800 m dans la classe du milieu.
+- Outre-mer : le décret ne vise que la métropole, la zone y est affichée "non applicable". La zone figure aussi dans le résultat copié et dans le panneau À propos (source et compteurs).
+- Nouveau flocon, l'icône Lucide fournie par Marius, dans l'outil et sur l'image d'aperçu du lien. La source de cette image, perdue avec le dossier temporaire, est désormais rangée dans src/apercu.html avec la commande de rendu.
+- Service d'altitude IGN lent ce jour (jusqu'à 10 s) : abandon au bout de 5 s et repli sur Copernicus DEM.
+- Débordement en largeur sur téléphone corrigé : colonnes de grille autorisées à rétrécir (minmax(0, 1fr)) et tableau d'été défilable en largeur.
+- Enregistré en local, pas poussé : en attente de l'accord de Marius.
+
 ## 2026-11-17, thème clair par défaut
 - Demande de Marius pour toutes les calculettes B27 : la page s'ouvre en thème clair, le réglage sombre du système n'est plus suivi ; le bouton de bascule reste, et le choix qu'il mémorise dans le navigateur est gardé.
 - Script du <head> (thème appliqué avant le premier rendu) et initTheme modifiés : plus de lecture de prefers-color-scheme ni d'écoute de son changement.
