@@ -9,7 +9,7 @@
 - Nouveau flocon, l'icône Lucide fournie par Marius, dans l'outil et sur l'image d'aperçu du lien. La source de cette image, perdue avec le dossier temporaire, est désormais rangée dans src/apercu.html avec la commande de rendu.
 - Service d'altitude IGN lent ce jour (jusqu'à 10 s) : abandon au bout de 5 s et repli sur Copernicus DEM.
 - Débordement en largeur sur téléphone corrigé : colonnes de grille autorisées à rétrécir (minmax(0, 1fr)) et tableau d'été défilable en largeur.
-- Enregistré en local, pas poussé : en attente de l'accord de Marius.
+- Publié le jour même sur accord de Marius, et vérifié en ligne.
 
 ## 2026-11-17, thème clair par défaut
 - Demande de Marius pour toutes les calculettes B27 : la page s'ouvre en thème clair, le réglage sombre du système n'est plus suivi ; le bouton de bascule reste, et le choix qu'il mémorise dans le navigateur est gardé.
